@@ -43,6 +43,9 @@ The project requires Python 3.10+ on Windows. Install the dependencies with:
 pip install -r requirements.txt
 ```
 
+Both the aimbot and ESP will check for updates on startup and exit if your
+local copy is out of date. Run ``git pull`` regularly to stay current.
+
 ### Aimbot
 
 Launch Deadlock first and then start the aimbot with:

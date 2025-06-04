@@ -10,6 +10,7 @@ import pygame
 
 from .helpers import world_to_screen
 from .memory import DeadlockMemory
+from .update_checker import ensure_up_to_date
 
 
 class ESP:
@@ -82,6 +83,7 @@ class ESP:
 
 
 def main() -> None:
+    ensure_up_to_date()
     mem = DeadlockMemory()
     esp = ESP(mem)
     esp.run()
