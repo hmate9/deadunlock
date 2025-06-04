@@ -30,13 +30,26 @@ class ESP:
         ctypes.windll.user32.SetLayeredWindowAttributes(hwnd, 0, 255, 1)
 
     def draw_skeleton(self, bones, color=(255, 0, 0)) -> None:
-        """Draw a list of bone pairs to the screen."""
+        """Draw a list of bone pairs to the screen.
 
-        for start, end in bones:
-            start_pos = world_to_screen(self.view_matrix, start, self.width, self.height)
-            end_pos = world_to_screen(self.view_matrix, end, self.width, self.height)
+        The original proof-of-concept script renders each bone as a tiny red dot
+        with its index printed above it.  ``bones`` is expected to contain
+        ``(start, end)`` tuples where ``start`` and ``end`` are 3D coordinates.
+        """
+
+        for idx, (start, end) in enumerate(bones):
+            start_pos = world_to_screen(
+                self.view_matrix, start, self.width, self.height
+            )
+            end_pos = world_to_screen(
+                self.view_matrix, end, self.width, self.height
+            )
             if start_pos and end_pos:
+                # A line where start and end are identical produces a small dot.
                 pygame.draw.line(self.screen, color, start_pos, end_pos, 2)
+                font = pygame.font.Font(None, 18)
+                text = font.render(str(idx), True, (255, 255, 255))
+                self.screen.blit(text, (start_pos[0], start_pos[1] - 10))
 
     @property
     def width(self) -> int:
