@@ -73,12 +73,18 @@ def _get_current_version() -> Optional[str]:
         return _local_commit()
 
 
-def _download_and_replace_executable(download_url: str, current_exe_path: str, progress_callback: Optional[Callable[[str], None]] = None) -> bool:
+def _download_and_replace_executable(download_url: str, current_exe_path: str, progress_callback: Optional[Callable[[str], None]] = None, cancel_check: Optional[Callable[[], bool]] = None) -> bool:
     """Download a new executable and schedule replacement after exit."""
     try:
         if progress_callback:
             progress_callback("Initializing download...")
         print("Downloading update...")
+
+        # Check for cancellation
+        if cancel_check and cancel_check():
+            if progress_callback:
+                progress_callback("Download cancelled")
+            return False
 
         # Download to temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".exe") as temp_file:
@@ -86,6 +92,12 @@ def _download_and_replace_executable(download_url: str, current_exe_path: str, p
 
         if progress_callback:
             progress_callback("Connecting to download server...")
+        
+        # Check for cancellation
+        if cancel_check and cancel_check():
+            if progress_callback:
+                progress_callback("Download cancelled")
+            return False
         
         try:
             resp = requests.get(download_url, stream=True, timeout=30)
@@ -110,6 +122,15 @@ def _download_and_replace_executable(download_url: str, current_exe_path: str, p
 
         with open(temp_path, "wb") as f:
             for chunk in resp.iter_content(chunk_size=8192):
+                # Check for cancellation during download
+                if cancel_check and cancel_check():
+                    if progress_callback:
+                        progress_callback("Download cancelled")
+                    # Clean up partial download
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+                    return False
+                    
                 f.write(chunk)
                 downloaded += len(chunk)
                 if progress_callback and total_size > 0:
@@ -295,13 +316,19 @@ def _pause(msg: str = "Press Enter to continue...") -> None:
             pass
 
 
-def ensure_up_to_date(progress_callback: Optional[Callable[[str], None]] = None, force: bool = False) -> None:
+def ensure_up_to_date(progress_callback: Optional[Callable[[str], None]] = None, force: bool = False, cancel_check: Optional[Callable[[], bool]] = None) -> None:
     """Update to the latest version if outdated and exit."""
     if progress_callback:
         if force:
             progress_callback("Force update requested - downloading latest version...")
         else:
             progress_callback("Checking if update is needed...")
+    
+    # Check for cancellation early
+    if cancel_check and cancel_check():
+        if progress_callback:
+            progress_callback("Update cancelled")
+        return
         
     if not force and not update_available():
         if progress_callback:
@@ -312,6 +339,12 @@ def ensure_up_to_date(progress_callback: Optional[Callable[[str], None]] = None,
         if progress_callback:
             progress_callback("Binary release detected - preparing automatic update")
         print("Your DeadUnlock binary is out of date. Downloading update...")
+        
+        # Check for cancellation before connecting
+        if cancel_check and cancel_check():
+            if progress_callback:
+                progress_callback("Update cancelled")
+            return
         
         if progress_callback:
             progress_callback("Connecting to GitHub API...")
@@ -333,6 +366,12 @@ def ensure_up_to_date(progress_callback: Optional[Callable[[str], None]] = None,
                 progress_callback(error_msg)
             print(error_msg)
             _pause()
+            return
+        
+        # Check for cancellation after getting release info
+        if cancel_check and cancel_check():
+            if progress_callback:
+                progress_callback("Update cancelled")
             return
             
         if progress_callback:
@@ -402,7 +441,7 @@ def ensure_up_to_date(progress_callback: Optional[Callable[[str], None]] = None,
                         progress_callback("Force updating to latest version (current version unknown)")
                         
         # Download and replace
-        if _download_and_replace_executable(download_url, current_exe_path, progress_callback):
+        if _download_and_replace_executable(download_url, current_exe_path, progress_callback, cancel_check):
             if progress_callback:
                 progress_callback("Update process completed successfully!")
                 progress_callback("Application will restart automatically...")

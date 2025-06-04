@@ -151,8 +151,13 @@ class UpdateProgressDialog:
         self.log_text.see(tk.END)
         self.log_text.config(state='disabled')
         
-        # Handle progress bar based on message content
-        if "%" in message and "Downloading" in message:
+        # Handle button states and progress bar based on message content
+        if "checking" in message.lower() or "connecting" in message.lower() or "found release" in message.lower():
+            # Enable cancel during initial phases
+            self.cancel_button.config(state="normal")
+        elif "downloading" in message.lower() and "%" in message:
+            # Enable cancel during download
+            self.cancel_button.config(state="normal")
             try:
                 # Extract percentage and switch to determinate mode
                 import re
@@ -166,6 +171,9 @@ class UpdateProgressDialog:
                     self.progress_label.config(text=f"{percent:.1f}%")
             except:
                 pass
+        elif "creating backup" in message.lower() or "preparing update helper" in message.lower() or "launching" in message.lower():
+            # Disable cancel during critical phases
+            self.cancel_button.config(state="disabled")
         elif is_error:
             self.progress_bar.stop()
             self.progress_bar.config(mode='determinate', maximum=100, value=0)
@@ -183,7 +191,9 @@ class UpdateProgressDialog:
             else:
                 self.close_button.config(state="normal")
         elif "preparing" in message.lower() or "creating" in message.lower() or "verifying" in message.lower():
-            # Switch back to indeterminate for non-download tasks
+            # Enable cancel for most preparation phases, but switch back to indeterminate for non-download tasks
+            if "backup" not in message.lower() and "helper" not in message.lower():
+                self.cancel_button.config(state="normal")
             if self.progress_bar['mode'] == 'determinate' and self.progress_bar['value'] < 100:
                 pass  # Keep determinate mode if we're in middle of download
             elif "download" not in message.lower():
@@ -212,6 +222,7 @@ class UpdateProgressDialog:
         self.cancelled = True
         self.cancel_button.config(state="disabled")
         self.update_status("Update cancelled by user", is_error=True)
+        self.close_button.config(state="normal")
         
     def close_dialog(self):
         """Close the dialog."""
@@ -220,11 +231,35 @@ class UpdateProgressDialog:
         
     def on_window_close(self):
         """Handle window close event."""
-        # Don't allow closing during active update unless cancel is available
-        if self.close_button['state'] == 'normal' or self.cancel_button['state'] == 'normal':
-            if self.cancel_button['state'] == 'normal':
-                self.cancel_update()
+        # Always allow closing if there's an error or if update is complete
+        if self.close_button['state'] == 'normal':
             self.close_dialog()
+            return
+            
+        # Allow closing if cancel is available (during safe phases)
+        if self.cancel_button['state'] == 'normal':
+            # Ask user for confirmation during active update
+            result = messagebox.askyesno(
+                "Cancel Update",
+                "An update is in progress. Are you sure you want to cancel?",
+                parent=self.dialog
+            )
+            if result:
+                self.cancel_update()
+                return
+        else:
+            # During critical phases, ask if user really wants to force close
+            result = messagebox.askyesno(
+                "Force Close",
+                "Update is in a critical phase. Force closing may leave the application in an unstable state.\n\nForce close anyway?",
+                parent=self.dialog
+            )
+            if result:
+                self.cancelled = True
+                self.close_dialog()
+                return
+        
+        # If user chose not to close, do nothing (don't close the window)
 
 
 class GUILogHandler(logging.Handler):
@@ -315,12 +350,20 @@ class AimbotApp:
         def update_thread():
             """Run update in separate thread."""
             try:
+                # Check for cancellation
+                if progress_dialog.cancelled:
+                    return
+                    
                 # Add initial version info
                 current_version = _get_current_version()
                 if current_version:
                     progress_callback(f"Current version: {current_version[:7]}")
                 else:
                     progress_callback("Current version: Unknown")
+                
+                # Check for cancellation
+                if progress_dialog.cancelled:
+                    return
                 
                 # Get latest release info for version comparison
                 from .update_checker import _get_latest_release
@@ -343,8 +386,13 @@ class AimbotApp:
                             except:
                                 pass
                 
+                # Check for cancellation before starting update
+                if progress_dialog.cancelled:
+                    progress_callback("Update cancelled before download started")
+                    return
+                
                 # Start the actual update process
-                ensure_up_to_date(progress_callback, force=force)
+                ensure_up_to_date(progress_callback, force=force, cancel_check=lambda: progress_dialog.cancelled)
             except SystemExit:
                 # Expected when update completes successfully
                 pass
@@ -597,7 +645,7 @@ class AimbotApp:
                         
                         def update_thread():
                             try:
-                                ensure_up_to_date(progress_callback)
+                                ensure_up_to_date(progress_callback, cancel_check=lambda: progress_dialog.cancelled)
                             except SystemExit:
                                 pass
                             except Exception as e:
