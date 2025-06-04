@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import queue
+import sys
 import threading
 import tkinter as tk
 from dataclasses import asdict
@@ -84,12 +85,75 @@ class AimbotApp:
     def _notify_if_outdated(self) -> None:
         """Show a warning dialog if the local repo is outdated."""
         if update_available():
-            messagebox.showwarning(
-                "Update available",
-                "A newer DeadUnlock version is available. Please run 'git pull'.",
+            # Check if we're running as a binary
+            if getattr(sys, 'frozen', False):
+                # For binary releases, the update will be automatic
+                result = messagebox.askyesno(
+                    "Update available",
+                    "A newer DeadUnlock version is available. Would you like to update now?\n\n"
+                    "The application will download and install the update automatically.",
+                )
+                if result:
+                    # Trigger the update process
+                    try:
+                        ensure_up_to_date()
+                    except Exception as e:
+                        messagebox.showerror("Update failed", f"Failed to update: {e}")
+            else:
+                # For source installations, show git pull message
+                messagebox.showwarning(
+                    "Update available",
+                    "A newer DeadUnlock version is available. Please run 'git pull'.",
+                )
+
+    def _check_for_updates(self) -> None:
+        """Manually check for updates and offer to update if available."""
+        try:
+            if update_available():
+                # Check if we're running as a binary
+                if getattr(sys, 'frozen', False):
+                    # For binary releases, offer automatic update
+                    result = messagebox.askyesno(
+                        "Update Available",
+                        "A newer DeadUnlock version is available. Would you like to update now?\n\n"
+                        "The application will download and install the update automatically.",
+                    )
+                    if result:
+                        # Show a progress dialog while updating
+                        self._update_status("Updating...", "blue")
+                        self.root.update()
+                        try:
+                            ensure_up_to_date()
+                        except Exception as e:
+                            messagebox.showerror("Update Failed", f"Failed to update: {e}")
+                            self._update_status("Update failed", "red")
+                else:
+                    # For source installations, show git pull message
+                    messagebox.showinfo(
+                        "Update Available",
+                        "A newer DeadUnlock version is available. Please run 'git pull' to update.",
+                    )
+            else:
+                messagebox.showinfo(
+                    "No Updates",
+                    "You are running the latest version of DeadUnlock.",
+                )
+        except Exception as e:
+            messagebox.showerror(
+                "Update Check Failed", 
+                f"Failed to check for updates: {e}"
             )
 
     def _build_widgets(self) -> None:
+        # Create menu bar
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+        
+        # Help menu
+        help_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Help", menu=help_menu)
+        help_menu.add_command(label="Check for Updates", command=self._check_for_updates)
+        
         # Main container
         main_frame = ttk.Frame(self.root, padding=10)
         main_frame.grid(row=0, column=0, sticky="nsew")
@@ -236,7 +300,11 @@ class AimbotApp:
         save_settings(self.settings)
 
         try:
-            ensure_up_to_date()
+            # For binary releases, update check is handled in _notify_if_outdated
+            # For source installations, we can still do a quick check here
+            if not getattr(sys, 'frozen', False):
+                ensure_up_to_date()
+            
             mem = DeadlockMemory()
             self.bot = Aimbot(mem, self.settings)
             

@@ -4,7 +4,7 @@ a = Analysis(
     ['launcher.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('version.txt', '.')],
     hiddenimports=[
         'numpy',
         'numpy.core',

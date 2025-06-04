@@ -23,6 +23,7 @@ jobs:
           pip install pyinstaller      
       - name: Build executable
         run: |
+          echo ${{ github.sha }} > version.txt
           pyinstaller aimbot_gui.spec
 
       - name: Get tag name
