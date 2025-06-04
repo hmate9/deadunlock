@@ -3,7 +3,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from typing import Optional
+from typing import Optional, Callable
 
 import requests
 
@@ -43,7 +43,10 @@ def _get_latest_release() -> Optional[dict]:
         resp = requests.get(REPO_API_RELEASES, timeout=10)
         if resp.status_code == 200:
             return resp.json()
-    except Exception:
+    except requests.exceptions.RequestException as e:
+        print(f"Network error while fetching release info: {e}")
+    except Exception as e:
+        print(f"Error fetching release info: {e}")
         pass
     return None
 
@@ -70,29 +73,93 @@ def _get_current_version() -> Optional[str]:
         return _local_commit()
 
 
-def _download_and_replace_executable(download_url: str, current_exe_path: str) -> bool:
+def _download_and_replace_executable(download_url: str, current_exe_path: str, progress_callback: Optional[Callable[[str], None]] = None) -> bool:
     """Download a new executable and schedule replacement after exit."""
     try:
+        if progress_callback:
+            progress_callback("Initializing download...")
         print("Downloading update...")
 
         # Download to temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".exe") as temp_file:
             temp_path = temp_file.name
 
-        resp = requests.get(download_url, stream=True, timeout=30)
-        resp.raise_for_status()
+        if progress_callback:
+            progress_callback("Connecting to download server...")
+        
+        try:
+            resp = requests.get(download_url, stream=True, timeout=30)
+            resp.raise_for_status()
+        except requests.exceptions.Timeout:
+            raise Exception("Download request timed out")
+        except requests.exceptions.ConnectionError:
+            raise Exception("Failed to connect to download server")
+        except requests.exceptions.HTTPError as e:
+            raise Exception(f"HTTP error {resp.status_code}: {e}")
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"Network error: {e}")
+        
+        total_size = int(resp.headers.get('content-length', 0))
+        downloaded = 0
+
+        if progress_callback:
+            if total_size > 0:
+                progress_callback(f"Starting download ({total_size // 1024 // 1024:.1f} MB)...")
+            else:
+                progress_callback("Starting download (size unknown)...")
 
         with open(temp_path, "wb") as f:
             for chunk in resp.iter_content(chunk_size=8192):
                 f.write(chunk)
+                downloaded += len(chunk)
+                if progress_callback and total_size > 0:
+                    percent = (downloaded / total_size) * 100
+                    progress_callback(f"Downloading update... {percent:.1f}% ({downloaded // 1024 // 1024:.1f}/{total_size // 1024 // 1024:.1f} MB)")
+                elif progress_callback:
+                    progress_callback(f"Downloading update... {downloaded // 1024 // 1024:.1f} MB downloaded")
 
+        if progress_callback:
+            progress_callback("Download complete. Verifying file...")
         print("Download complete. Preparing update helper...")
 
+        # Verify downloaded file size
+        actual_size = os.path.getsize(temp_path)
+        if total_size > 0:
+            if actual_size != total_size:
+                raise Exception(f"Downloaded file size mismatch: expected {total_size}, got {actual_size}")
+            if progress_callback:
+                progress_callback(f"File verification successful ({actual_size // 1024 // 1024:.1f} MB)")
+        else:
+            if progress_callback:
+                progress_callback(f"Download completed ({actual_size // 1024 // 1024:.1f} MB)")
+        
+        # Basic file validation - check if it's a valid executable
+        if actual_size < 1024 * 1024:  # Less than 1MB is suspicious for an executable
+            raise Exception("Downloaded file appears to be too small to be a valid executable")
+            
+        if progress_callback:
+            progress_callback("File validation passed")
+
+        if progress_callback:
+            progress_callback("Creating backup of current version...")
+        
         # Create backup of current executable
         backup_path = current_exe_path + ".backup"
         if os.path.exists(backup_path):
+            if progress_callback:
+                progress_callback("Removing old backup...")
             os.remove(backup_path)
+        
+        if progress_callback:
+            progress_callback("Creating backup of current executable...")
         shutil.copy2(current_exe_path, backup_path)
+        
+        if progress_callback:
+            backup_size = os.path.getsize(backup_path)
+            progress_callback(f"Backup created successfully ({backup_size // 1024 // 1024:.1f} MB)")
+
+        if progress_callback:
+            progress_callback("Preparing update helper script...")
 
         # Write helper script that waits for the current process to exit,
         # replaces the executable and launches the new one
@@ -106,7 +173,8 @@ import time
 OLD = r"{current_exe_path}"
 NEW = r"{temp_path}"
 
-for _ in range(30):
+# Wait for current process to exit (up to 30 seconds)
+for i in range(30):
     try:
         os.remove(OLD)
         break
@@ -115,37 +183,76 @@ for _ in range(30):
     except FileNotFoundError:
         break
 else:
+    # Timeout - exit with error
     sys.exit(1)
 
-shutil.move(NEW, OLD)
-subprocess.Popen([OLD])
+# Move new executable to replace old one
+try:
+    shutil.move(NEW, OLD)
+except Exception as e:
+    sys.exit(1)
+
+# Launch the new executable
+try:
+    subprocess.Popen([OLD])
+except Exception as e:
+    sys.exit(1)
 """
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w", encoding="utf-8") as helper:
             helper.write(helper_code)
             helper_path = helper.name
 
-        subprocess.Popen([sys.executable, helper_path])
+        if progress_callback:
+            progress_callback("Update helper script created successfully")
+            progress_callback("Launching update helper...")
 
+        try:
+            subprocess.Popen([sys.executable, helper_path])
+        except Exception as e:
+            raise Exception(f"Failed to launch update helper: {e}")
+
+        if progress_callback:
+            progress_callback("Update helper launched successfully")
+            progress_callback("Application will restart in a few seconds...")
         print("Updater launched. Exiting current instance...")
         return True
 
     except Exception as e:
-        print(f"Failed to download/install update: {e}")
+        error_msg = f"Update failed: {str(e)}"
+        if progress_callback:
+            progress_callback(error_msg)
+        print(error_msg)
+        
         # Clean up temp file if it exists
         if "temp_path" in locals() and os.path.exists(temp_path):
             try:
+                if progress_callback:
+                    progress_callback("Cleaning up temporary files...")
                 os.remove(temp_path)
-            except Exception:
+                if progress_callback:
+                    progress_callback("Temporary files cleaned up")
+            except Exception as cleanup_error:
+                if progress_callback:
+                    progress_callback(f"Warning: Failed to clean up temporary file: {cleanup_error}")
                 pass
+                
         # Try to restore backup if replacement failed
         backup_path = current_exe_path + ".backup"
         if os.path.exists(backup_path) and not os.path.exists(current_exe_path):
             try:
+                if progress_callback:
+                    progress_callback("Attempting to restore backup...")
                 shutil.move(backup_path, current_exe_path)
-                print("Restored backup executable.")
-            except Exception:
-                pass
+                success_msg = "Backup restored successfully"
+                if progress_callback:
+                    progress_callback(success_msg)
+                print(success_msg)
+            except Exception as restore_error:
+                restore_msg = f"Failed to restore backup: {restore_error}"
+                if progress_callback:
+                    progress_callback(restore_msg)
+                print(restore_msg)
         return False
 
 
@@ -188,23 +295,53 @@ def _pause(msg: str = "Press Enter to continue...") -> None:
             pass
 
 
-def ensure_up_to_date() -> None:
+def ensure_up_to_date(progress_callback: Optional[Callable[[str], None]] = None) -> None:
     """Update to the latest version if outdated and exit."""
+    if progress_callback:
+        progress_callback("Checking if update is needed...")
+        
     if not update_available():
+        if progress_callback:
+            progress_callback("No update needed - you're running the latest version")
         return
 
     if _is_binary_release():
+        if progress_callback:
+            progress_callback("Binary release detected - preparing automatic update")
         print("Your DeadUnlock binary is out of date. Downloading update...")
         
+        if progress_callback:
+            progress_callback("Connecting to GitHub API...")
+        
         # Get latest release info
-        latest_release = _get_latest_release()
-        if not latest_release:
-            print("Failed to fetch latest release information.")
+        try:
+            latest_release = _get_latest_release()
+        except Exception as e:
+            error_msg = f"Failed to connect to GitHub API: {str(e)}"
+            if progress_callback:
+                progress_callback(error_msg)
+            print(error_msg)
             _pause()
             return
             
+        if not latest_release:
+            error_msg = "Failed to fetch latest release information from GitHub"
+            if progress_callback:
+                progress_callback(error_msg)
+            print(error_msg)
+            _pause()
+            return
+            
+        if progress_callback:
+            release_name = latest_release.get("name", "Unknown")
+            progress_callback(f"Found release: {release_name}")
+            progress_callback("Analyzing release assets...")
+        
         # Find the executable asset
         assets = latest_release.get("assets", [])
+        if progress_callback:
+            progress_callback(f"Found {len(assets)} asset(s) in release")
+            
         exe_asset = None
         for asset in assets:
             if asset.get("name") == "aimbot_gui.exe":
@@ -212,37 +349,78 @@ def ensure_up_to_date() -> None:
                 break
                 
         if not exe_asset:
-            print("No executable found in latest release.")
+            error_msg = "No executable found in latest release."
+            if progress_callback:
+                asset_names = [asset.get("name", "unknown") for asset in assets]
+                progress_callback(f"Available assets: {', '.join(asset_names) if asset_names else 'none'}")
+                progress_callback(error_msg)
+            print(error_msg)
             _pause()
             return
+            
+        if progress_callback:
+            file_size = exe_asset.get("size", 0)
+            if file_size > 0:
+                progress_callback(f"Found executable: {exe_asset.get('name')} ({file_size // 1024 // 1024:.1f} MB)")
+            else:
+                progress_callback(f"Found executable: {exe_asset.get('name')}")
             
         download_url = exe_asset.get("browser_download_url")
         if not download_url:
-            print("Failed to get download URL.")
+            error_msg = "Failed to get download URL from release asset"
+            if progress_callback:
+                progress_callback(error_msg)
+            print(error_msg)
             _pause()
             return
             
+        if progress_callback:
+            progress_callback("Download URL obtained successfully")
+            progress_callback("Validating current executable path...")
+        
         # Get current executable path
         current_exe_path = sys.executable
-        
+        if progress_callback:
+            progress_callback(f"Current executable: {current_exe_path}")
+            
         # Download and replace
-        if _download_and_replace_executable(download_url, current_exe_path):
+        if _download_and_replace_executable(download_url, current_exe_path, progress_callback):
+            if progress_callback:
+                progress_callback("Update process completed successfully!")
+                progress_callback("Application will restart automatically...")
             print("Update helper launched. Exiting for update...")
             sys.exit(0)
         else:
-            print("Update failed. Continuing with current version.")
+            error_msg = "Update process failed - continuing with current version"
+            if progress_callback:
+                progress_callback(error_msg)
+            print(error_msg)
             _pause()
     else:
         # For source installations, use git pull
+        if progress_callback:
+            progress_callback("Source installation detected - using git pull")
         print("Your DeadUnlock copy is out of date. Pulling updates...")
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        
+        if progress_callback:
+            progress_callback(f"Repository path: {root}")
+            progress_callback("Running git pull...")
+            
         try:
             subprocess.check_call(["git", "pull"], cwd=root)
         except Exception as exc:
-            print(f"Failed to update automatically: {exc}")
+            error_msg = f"Git pull failed: {exc}"
+            if progress_callback:
+                progress_callback(error_msg)
+            print(error_msg)
             print("Please run 'git pull' manually.")
             _pause("Press Enter to exit...")
             sys.exit(1)
+            
+        if progress_callback:
+            progress_callback("Git pull completed successfully")
+            progress_callback("Update complete. Please restart the program.")
         print("Update complete. Please restart the program.")
         _pause("Press Enter to exit...")
         sys.exit(0)

@@ -8,6 +8,7 @@ import os
 import queue
 import sys
 import threading
+import time
 import tkinter as tk
 from dataclasses import asdict
 from tkinter import messagebox, scrolledtext, ttk
@@ -47,6 +48,183 @@ def _get_build_sha() -> str:
     except Exception:
         pass
     return "unknown"
+
+
+class UpdateProgressDialog:
+    """Progress dialog for showing update status."""
+    
+    def __init__(self, parent: tk.Tk):
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("Updating DeadUnlock")
+        self.dialog.geometry("600x400")
+        self.dialog.resizable(False, False)
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+        
+        # Center the dialog
+        self.dialog.update_idletasks()
+        x = (self.dialog.winfo_screenwidth() // 2) - (600 // 2)
+        y = (self.dialog.winfo_screenheight() // 2) - (400 // 2)
+        self.dialog.geometry(f"600x400+{x}+{y}")
+        
+        # Set up the UI
+        main_frame = ttk.Frame(self.dialog, padding=20)
+        main_frame.pack(fill="both", expand=True)
+        
+        # Title
+        title_label = ttk.Label(main_frame, text="Updating DeadUnlock", font=("Arial", 16, "bold"))
+        title_label.pack(pady=(0, 15))
+        
+        # Progress frame
+        progress_frame = ttk.Frame(main_frame)
+        progress_frame.pack(fill="x", pady=(0, 10))
+        
+        # Progress bar (indeterminate initially)
+        self.progress_var = tk.DoubleVar()
+        self.progress_bar = ttk.Progressbar(progress_frame, mode='indeterminate', length=500)
+        self.progress_bar.pack(pady=(0, 5))
+        self.progress_bar.start()
+        
+        # Progress percentage label
+        self.progress_label = ttk.Label(progress_frame, text="", font=("Arial", 9))
+        self.progress_label.pack()
+        
+        # Status text
+        self.status_label = ttk.Label(main_frame, text="Initializing update...", wraplength=550, font=("Arial", 11))
+        self.status_label.pack(pady=(0, 15))
+        
+        # Detailed log area
+        log_frame = ttk.LabelFrame(main_frame, text="Progress Details", padding=10)
+        log_frame.pack(fill="both", expand=True, pady=(10, 0))
+        
+        self.log_text = scrolledtext.ScrolledText(log_frame, height=12, width=70, state="disabled")
+        self.log_text.configure(background="#f8f8f8", foreground="#333333", font=("Consolas", 9))
+        self.log_text.pack(fill="both", expand=True)
+        
+        # Button frame
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill="x", pady=(15, 0))
+        
+        # Close button (initially disabled)
+        self.close_button = ttk.Button(button_frame, text="Close", command=self.close_dialog, state="disabled")
+        self.close_button.pack(side="right")
+        
+        # Cancel button (for during update)
+        self.cancel_button = ttk.Button(button_frame, text="Cancel", command=self.cancel_update, state="disabled")
+        self.cancel_button.pack(side="right", padx=(0, 10))
+        
+        self.dialog.protocol("WM_DELETE_WINDOW", self.on_window_close)
+        self.closed = False
+        self.cancelled = False
+        
+    def update_status(self, message: str, is_error: bool = False):
+        """Update the status label and add to log."""
+        if self.closed:
+            return
+            
+        self.status_label.config(text=message)
+        
+        # Add to log with timestamp
+        self.log_text.config(state='normal')
+        timestamp = time.strftime("%H:%M:%S")
+        log_entry = f"[{timestamp}] {message}\n"
+        
+        # Color code different types of messages
+        if is_error:
+            self.log_text.insert(tk.END, log_entry)
+            # Highlight the last line in red
+            self.log_text.tag_add("error", "end-2c linestart", "end-2c")
+            self.log_text.tag_config("error", foreground="#cc0000")
+        elif "complete" in message.lower() or "success" in message.lower():
+            self.log_text.insert(tk.END, log_entry)
+            # Highlight in green
+            self.log_text.tag_add("success", "end-2c linestart", "end-2c")
+            self.log_text.tag_config("success", foreground="#008000")
+        elif "warning" in message.lower():
+            self.log_text.insert(tk.END, log_entry)
+            # Highlight in orange
+            self.log_text.tag_add("warning", "end-2c linestart", "end-2c")
+            self.log_text.tag_config("warning", foreground="#ff8800")
+        else:
+            self.log_text.insert(tk.END, log_entry)
+            
+        self.log_text.see(tk.END)
+        self.log_text.config(state='disabled')
+        
+        # Handle progress bar based on message content
+        if "%" in message and "Downloading" in message:
+            try:
+                # Extract percentage and switch to determinate mode
+                import re
+                match = re.search(r'(\d+\.?\d*)%', message)
+                if match:
+                    percent = float(match.group(1))
+                    if self.progress_bar['mode'] != 'determinate':
+                        self.progress_bar.stop()
+                        self.progress_bar.config(mode='determinate', maximum=100)
+                    self.progress_bar['value'] = percent
+                    self.progress_label.config(text=f"{percent:.1f}%")
+            except:
+                pass
+        elif is_error:
+            self.progress_bar.stop()
+            self.progress_bar.config(mode='determinate', maximum=100, value=0)
+            self.progress_label.config(text="Failed")
+            self.close_button.config(state="normal")
+            self.cancel_button.config(state="disabled")
+        elif "complete" in message.lower() or "launched" in message.lower():
+            self.progress_bar.stop()
+            self.progress_bar.config(mode='determinate', maximum=100, value=100)
+            self.progress_label.config(text="Complete")
+            self.cancel_button.config(state="disabled")
+            if "restart" in message.lower():
+                self.status_label.config(text="Update complete! Application will restart shortly...")
+                self.dialog.after(3000, self.close_dialog)  # Auto-close after 3 seconds
+            else:
+                self.close_button.config(state="normal")
+        elif "preparing" in message.lower() or "creating" in message.lower() or "verifying" in message.lower():
+            # Switch back to indeterminate for non-download tasks
+            if self.progress_bar['mode'] == 'determinate' and self.progress_bar['value'] < 100:
+                pass  # Keep determinate mode if we're in middle of download
+            elif "download" not in message.lower():
+                self.progress_bar.config(mode='indeterminate')
+                self.progress_label.config(text="")
+                if not self.progress_bar.cget('mode') == 'indeterminate':
+                    self.progress_bar.start()
+        
+        self.dialog.update()
+        
+    def set_progress(self, value: float, maximum: float = 100.0):
+        """Set progress bar value."""
+        if self.closed:
+            return
+        self.progress_bar.stop()
+        self.progress_bar.config(mode='determinate', maximum=maximum, value=value)
+        self.progress_label.config(text=f"{(value/maximum)*100:.1f}%")
+        
+    def enable_close(self):
+        """Enable the close button."""
+        self.close_button.config(state="normal")
+        self.cancel_button.config(state="disabled")
+        
+    def cancel_update(self):
+        """Cancel the update process."""
+        self.cancelled = True
+        self.cancel_button.config(state="disabled")
+        self.update_status("Update cancelled by user", is_error=True)
+        
+    def close_dialog(self):
+        """Close the dialog."""
+        self.closed = True
+        self.dialog.destroy()
+        
+    def on_window_close(self):
+        """Handle window close event."""
+        # Don't allow closing during active update unless cancel is available
+        if self.close_button['state'] == 'normal' or self.cancel_button['state'] == 'normal':
+            if self.cancel_button['state'] == 'normal':
+                self.cancel_update()
+            self.close_dialog()
 
 
 class GUILogHandler(logging.Handler):
@@ -114,20 +292,68 @@ class AimbotApp:
                 result = messagebox.askyesno(
                     "Update available",
                     "A newer DeadUnlock version is available. Would you like to update now?\n\n"
-                    "The application will download and install the update automatically.",
+                    "The application will download and install the update automatically.\n"
+                    "You'll see detailed progress during the update process.",
                 )
                 if result:
-                    # Trigger the update process
-                    try:
-                        ensure_up_to_date()
-                    except Exception as e:
-                        messagebox.showerror("Update failed", f"Failed to update: {e}")
+                    self._perform_update_with_progress()
             else:
                 # For source installations, show git pull message
                 messagebox.showwarning(
                     "Update available",
                     "A newer DeadUnlock version is available. Please run 'git pull'.",
                 )
+
+    def _perform_update_with_progress(self):
+        """Perform update with detailed progress dialog."""
+        progress_dialog = UpdateProgressDialog(self.root)
+        
+        def progress_callback(message: str):
+            """Callback to update progress dialog."""
+            progress_dialog.update_status(message, is_error="failed" in message.lower() or "error" in message.lower())
+        
+        def update_thread():
+            """Run update in separate thread."""
+            try:
+                # Add initial version info
+                current_version = _get_current_version()
+                if current_version:
+                    progress_callback(f"Current version: {current_version[:7]}")
+                else:
+                    progress_callback("Current version: Unknown")
+                
+                # Get latest release info for version comparison
+                from .update_checker import _get_latest_release
+                latest_release = _get_latest_release()
+                if latest_release:
+                    tag_name = latest_release.get("tag_name", "")
+                    if tag_name.startswith("build-"):
+                        latest_commit = tag_name[6:][:7]  # Get first 7 chars of commit after "build-"
+                        progress_callback(f"Latest version: {latest_commit}")
+                        
+                        # Show release info if available
+                        published_at = latest_release.get("published_at", "")
+                        if published_at:
+                            import datetime
+                            try:
+                                # Parse ISO date and format it nicely
+                                dt = datetime.datetime.fromisoformat(published_at.replace('Z', '+00:00'))
+                                formatted_date = dt.strftime("%Y-%m-%d %H:%M")
+                                progress_callback(f"Release date: {formatted_date}")
+                            except:
+                                pass
+                
+                # Start the actual update process
+                ensure_up_to_date(progress_callback)
+            except SystemExit:
+                # Expected when update completes successfully
+                pass
+            except Exception as e:
+                progress_callback(f"Update failed: {str(e)}")
+                progress_dialog.enable_close()
+        
+        # Start update in background thread
+        threading.Thread(target=update_thread, daemon=True).start()
 
     def _check_for_updates(self) -> None:
         """Manually check for updates and offer to update if available."""
@@ -139,17 +365,11 @@ class AimbotApp:
                     result = messagebox.askyesno(
                         "Update Available",
                         "A newer DeadUnlock version is available. Would you like to update now?\n\n"
-                        "The application will download and install the update automatically.",
+                        "The application will download and install the update automatically.\n"
+                        "You'll see detailed progress during the update process.",
                     )
                     if result:
-                        # Show a progress dialog while updating
-                        self._update_status("Updating...", "blue")
-                        self.root.update()
-                        try:
-                            ensure_up_to_date()
-                        except Exception as e:
-                            messagebox.showerror("Update Failed", f"Failed to update: {e}")
-                            self._update_status("Update failed", "red")
+                        self._perform_update_with_progress()
                 else:
                     # For source installations, show git pull message
                     messagebox.showinfo(
@@ -173,18 +393,10 @@ class AimbotApp:
             result = messagebox.askyesno(
                 "Force Update",
                 "Download and install the latest version now?\n\n"
-                "This may restart the application.",
+                "This will restart the application and show detailed progress.",
             )
             if result:
-                self._update_status("Updating...", "blue")
-                self.root.update()
-                try:
-                    ensure_up_to_date()
-                except SystemExit:
-                    pass
-                except Exception as exc:
-                    messagebox.showerror("Update Failed", f"Failed to update: {exc}")
-                    self._update_status("Update failed", "red")
+                self._perform_update_with_progress()
         except Exception as exc:
             messagebox.showerror("Force Update Failed", f"Failed to update: {exc}")
 
@@ -371,7 +583,29 @@ class AimbotApp:
             # For binary releases, update check is handled in _notify_if_outdated
             # For source installations, we can still do a quick check here
             if not getattr(sys, 'frozen', False):
-                ensure_up_to_date()
+                # Show a simple progress dialog for source updates too
+                if update_available():
+                    result = messagebox.askyesno(
+                        "Update Available",
+                        "A newer version is available. Update now before starting?",
+                    )
+                    if result:
+                        progress_dialog = UpdateProgressDialog(self.root)
+                        
+                        def progress_callback(message: str):
+                            progress_dialog.update_status(message, is_error="failed" in message.lower())
+                        
+                        def update_thread():
+                            try:
+                                ensure_up_to_date(progress_callback)
+                            except SystemExit:
+                                pass
+                            except Exception as e:
+                                progress_callback(f"Update failed: {str(e)}")
+                                progress_dialog.enable_close()
+                        
+                        threading.Thread(target=update_thread, daemon=True).start()
+                        return  # Don't start aimbot if updating
             
             mem = DeadlockMemory()
             self.bot = Aimbot(mem, self.settings)
