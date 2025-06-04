@@ -49,6 +49,11 @@ class AimbotApp:
         aimbot_logger = logging.getLogger('deadlock.aimbot')
         aimbot_logger.addHandler(self.log_handler)
         aimbot_logger.setLevel(logging.INFO)
+        
+        # Add handler to offset finder logger to show initialization progress
+        offset_finder_logger = logging.getLogger('offset_finder')
+        offset_finder_logger.addHandler(self.log_handler)
+        offset_finder_logger.setLevel(logging.INFO)
 
         self._build_widgets()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -476,6 +481,10 @@ class AimbotApp:
         if hasattr(self, 'log_handler'):
             aimbot_logger = logging.getLogger('deadlock.aimbot')
             aimbot_logger.removeHandler(self.log_handler)
+            
+            # Also clean up offset finder logger
+            offset_finder_logger = logging.getLogger('offset_finder')
+            offset_finder_logger.removeHandler(self.log_handler)
             
         self.root.destroy()
 
