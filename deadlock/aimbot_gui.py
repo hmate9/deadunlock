@@ -132,10 +132,14 @@ class AimbotApp:
                     return
                 
                 # Start the actual update process
-                ensure_up_to_date(progress_callback, force=force, cancel_check=lambda: progress_dialog.cancelled)
+                ensure_up_to_date(
+                    progress_callback,
+                    force=force,
+                    cancel_check=lambda: progress_dialog.cancelled,
+                )
             except SystemExit:
-                # Expected when update completes successfully
-                pass
+                # Terminate entire application so the helper can replace the binary
+                os._exit(0)
             except Exception as e:
                 progress_callback(f"Update failed: {str(e)}")
                 progress_dialog.enable_close()
