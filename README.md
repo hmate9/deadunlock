@@ -52,7 +52,13 @@ python -m deadlock.aimbot
 ```
 
 The script connects to the game's process and continually adjusts your camera
-towards enemy targets.
+towards enemy targets. When run normally it prints only setup information.
+Pass ``--debug`` to enable verbose logging about target changes and aimbot
+state:
+
+```bash
+python -m deadlock.aimbot --debug
+```
 
 ### ESP Overlay
 

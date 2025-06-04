@@ -12,20 +12,32 @@ relies on ``win32api`` to query mouse button state.
 """
 
 from dataclasses import dataclass
+import logging
 import random
 import time
 
-import win32api
+try:
+    import win32api  # type: ignore
+    _IMPORT_ERROR: Exception | None = None
+except Exception as exc:  # pragma: no cover - platform specific
+    win32api = None  # type: ignore
+    _IMPORT_ERROR = exc
 
 try:
     from .heroes import get_body_bone_index, get_head_bone_index
     from .helpers import calculate_camera_rotation, calculate_new_camera_angles
     from .memory import DeadlockMemory
-except ImportError:
+except Exception as exc:
     # Fallback for when running directly
-    from heroes import get_body_bone_index, get_head_bone_index
-    from helpers import calculate_camera_rotation, calculate_new_camera_angles
-    from memory import DeadlockMemory
+    try:  # pragma: no cover - used when running module directly
+        from heroes import get_body_bone_index, get_head_bone_index
+        from helpers import calculate_camera_rotation, calculate_new_camera_angles
+        from memory import DeadlockMemory
+    except Exception as inner:
+        if _IMPORT_ERROR is None:
+            _IMPORT_ERROR = inner
+    else:
+        _IMPORT_ERROR = exc
 
 
 @dataclass
@@ -44,13 +56,15 @@ class AimbotSettings:
 
 class Aimbot:
     """Basic aimbot controller."""
-    
+
     def __init__(self, mem: DeadlockMemory, settings: AimbotSettings | None = None) -> None:
         """Create a new aimbot bound to ``mem``."""
-        
+
         self.mem = mem
         self.settings = settings or AimbotSettings()
         self.locked_on: int | None = None
+        self.log = logging.getLogger(self.__class__.__name__)
+        self.log.info("Aimbot initialised with settings: %s", self.settings)
 
     def should_aim_for_head(self) -> bool:
         """Return ``True`` if the bot should attempt a headshot."""
@@ -59,11 +73,13 @@ class Aimbot:
 
     def run(self) -> None:
         """Main aimbot loop."""
-
+        self.log.info("Starting aimbot loop")
         while True:
             # Only run aimbot when left mouse button is held down
             if win32api.GetKeyState(0x01) >= 0:
                 # Left mouse button is not held down, reset target and continue
+                if self.locked_on is not None:
+                    self.log.debug("Aimbot deactivated")
                 self.locked_on = None
                 time.sleep(0.01)
                 continue
@@ -98,6 +114,8 @@ class Aimbot:
                         if best_score is None or score < best_score:
                             best_score = score
                             target_idx = i
+                if target_idx is not None:
+                    self.log.debug("Locked on to target index %s", target_idx)
                 self.locked_on = target_idx
 
             if self.locked_on is None:
@@ -107,6 +125,7 @@ class Aimbot:
             try:
                 target = self.mem.read_entity(self.locked_on)
             except Exception:
+                self.log.debug("Lost target %s", self.locked_on)
                 self.locked_on = None
                 continue
 
@@ -138,7 +157,27 @@ class Aimbot:
             time.sleep(0.001)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    """Entry point for the aimbot CLI."""
+
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Deadlock aimbot")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging",
+    )
+    args = parser.parse_args(argv)
+
+    logging.basicConfig(
+        level=logging.DEBUG if args.debug else logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+    )
+
+    if _IMPORT_ERROR is not None:
+        parser.error(f"Required Windows-only dependencies not available: {_IMPORT_ERROR}")
+
     mem = DeadlockMemory()
     bot = Aimbot(mem)
     bot.run()
