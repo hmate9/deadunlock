@@ -17,9 +17,15 @@ import time
 
 import win32api
 
-from .heroes import get_body_bone_index, get_head_bone_index
-from .helpers import calculate_camera_rotation, calculate_new_camera_angles
-from .memory import DeadlockMemory
+try:
+    from .heroes import get_body_bone_index, get_head_bone_index
+    from .helpers import calculate_camera_rotation, calculate_new_camera_angles
+    from .memory import DeadlockMemory
+except ImportError:
+    # Fallback for when running directly
+    from heroes import get_body_bone_index, get_head_bone_index
+    from helpers import calculate_camera_rotation, calculate_new_camera_angles
+    from memory import DeadlockMemory
 
 
 @dataclass
@@ -38,10 +44,10 @@ class AimbotSettings:
 
 class Aimbot:
     """Basic aimbot controller."""
-
+    
     def __init__(self, mem: DeadlockMemory, settings: AimbotSettings | None = None) -> None:
         """Create a new aimbot bound to ``mem``."""
-
+        
         self.mem = mem
         self.settings = settings or AimbotSettings()
         self.locked_on: int | None = None
@@ -55,11 +61,16 @@ class Aimbot:
         """Main aimbot loop."""
 
         while True:
+            # Only run aimbot when left mouse button is held down
+            if win32api.GetKeyState(0x01) >= 0:
+                # Left mouse button is not held down, reset target and continue
+                self.locked_on = None
+                time.sleep(0.01)
+                continue
+
             cam_pos = self.mem.camera_position()
             current_yaw, current_pitch = self.mem.current_angles()
             my_data = self.mem.read_entity(0)
-            if self.locked_on is not None and win32api.GetKeyState(0x01) >= 0:
-                self.locked_on = None
 
             if self.locked_on is None:
                 target_idx = None
