@@ -14,6 +14,7 @@ relies on ``win32api`` to query mouse button state.
 from dataclasses import dataclass
 import random
 import time
+import logging
 
 import win32api
 
@@ -27,6 +28,8 @@ except ImportError:
     from heroes import get_body_bone_index, get_head_bone_index
     from helpers import calculate_camera_rotation, calculate_new_camera_angles
     from memory import DeadlockMemory
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -81,18 +84,23 @@ class Aimbot:
         self.locked_on: int | None = None
         self.force_aim_until: float = 0.0
 
+        logger.info("Aimbot initialised with settings: %s", self.settings)
+
     def _update_ability_lock(self, hero) -> None:
         """Extend ``force_aim_until`` when ability keys are pressed."""
         now = time.time()
         if hero.name == "GreyTalon" and self.settings.grey_talon_lock_enabled and self.settings.grey_talon_lock > 0:
             if win32api.GetKeyState(self.settings.grey_talon_key) < 0:
                 self.force_aim_until = max(self.force_aim_until, now + self.settings.grey_talon_lock)
+                logger.debug("Grey Talon ability lock triggered; holding until %.2f", self.force_aim_until)
         elif hero.name == "Yamato" and self.settings.yamato_lock_enabled and self.settings.yamato_lock > 0:
             if win32api.GetKeyState(self.settings.yamato_key) < 0:
                 self.force_aim_until = max(self.force_aim_until, now + self.settings.yamato_lock)
+                logger.debug("Yamato ability lock triggered; holding until %.2f", self.force_aim_until)
         elif hero.name == "Vindicta" and self.settings.vindicta_lock_enabled and self.settings.vindicta_lock > 0:
             if win32api.GetKeyState(self.settings.vindicta_key) < 0:
                 self.force_aim_until = max(self.force_aim_until, now + self.settings.vindicta_lock)
+                logger.debug("Vindicta ability lock triggered; holding until %.2f", self.force_aim_until)
 
     def should_aim_for_head(self) -> bool:
         """Return ``True`` if the bot should attempt a headshot."""
@@ -102,11 +110,17 @@ class Aimbot:
     def run(self) -> None:
         """Main aimbot loop."""
 
+        logger.info("Aimbot loop started")
+        active = False
+        prev_locked = None
         while True:
             my_data = self.mem.read_entity(0)
             self._update_ability_lock(my_data["hero"])
 
             mouse_down = win32api.GetKeyState(0x01) < 0 or time.time() < self.force_aim_until
+            if mouse_down != active:
+                active = mouse_down
+                logger.info("Aimbot turned %s", "on" if active else "off")
             if not mouse_down:
                 # Left mouse button is not held and no ability lock active
                 self.locked_on = None
@@ -143,6 +157,17 @@ class Aimbot:
                             best_score = score
                             target_idx = i
                 self.locked_on = target_idx
+                if self.locked_on is not None:
+                    logger.debug("Locked on to entity %d", self.locked_on)
+
+            if prev_locked != self.locked_on:
+                if self.locked_on is None:
+                    if prev_locked is not None:
+                        logger.debug("Lost target")
+                else:
+                    if prev_locked is not None:
+                        logger.debug("Changed target from %d to %d", prev_locked, self.locked_on)
+                prev_locked = self.locked_on
 
             if self.locked_on is None:
                 time.sleep(0.01)
@@ -151,6 +176,7 @@ class Aimbot:
             try:
                 target = self.mem.read_entity(self.locked_on)
             except Exception:
+                logger.debug("Failed to read entity %s; losing target", self.locked_on)
                 self.locked_on = None
                 continue
 
@@ -183,6 +209,10 @@ class Aimbot:
 
 
 def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
     ensure_up_to_date()
     mem = DeadlockMemory()
     bot = Aimbot(mem)

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ctypes
 import time
+import logging
 
 import numpy as np
 import pygame
@@ -11,6 +12,8 @@ import pygame
 from .helpers import world_to_screen
 from .memory import DeadlockMemory
 from .update_checker import ensure_up_to_date
+
+logger = logging.getLogger(__name__)
 
 
 class ESP:
@@ -29,6 +32,7 @@ class ESP:
         hwnd = pygame.display.get_wm_info()["window"]
         ctypes.windll.user32.SetWindowLongW(hwnd, -20, ctypes.windll.user32.GetWindowLongW(hwnd, -20) | 0x80000 | 0x20)
         ctypes.windll.user32.SetLayeredWindowAttributes(hwnd, 0, 255, 1)
+        logger.info("ESP overlay initialised")
 
     def draw_skeleton(self, bones, color=(255, 0, 0)) -> None:
         """Draw a list of bone pairs to the screen.
@@ -67,6 +71,7 @@ class ESP:
     def run(self) -> None:
         """Main overlay loop."""
 
+        logger.info("ESP loop started")
         running = True
         while running:
             self.screen.fill((0, 0, 0, 0))
@@ -75,6 +80,7 @@ class ESP:
                 try:
                     data = self.mem.read_entity(i)
                 except Exception:
+                    logger.debug("Failed to read entity %d", i)
                     continue
                 bone_array = self.mem.read_longlong(data["node"] + 0x170 + 0x80)
                 bones = []
@@ -85,6 +91,7 @@ class ESP:
                         self.mem.read_float(bone_array + b * 32 + 8),
                     )
                     bones.append((start, start))
+                logger.debug("Drawing skeleton for entity %d", i)
                 self.draw_skeleton(bones)
 
             pygame.display.flip()
@@ -93,9 +100,14 @@ class ESP:
                 if event.type == pygame.QUIT:
                     running = False
             time.sleep(0.001)
+        logger.info("ESP loop stopped")
 
 
 def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
     ensure_up_to_date()
     mem = DeadlockMemory()
     esp = ESP(mem)
