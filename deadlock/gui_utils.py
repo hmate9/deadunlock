@@ -7,11 +7,16 @@ import os
 import time
 import logging
 import queue
+import threading
 import tkinter as tk
 from dataclasses import asdict
 from tkinter import scrolledtext, ttk, messagebox
 
-from .update_checker import _get_current_version
+from .update_checker import (
+    _get_current_version,
+    _get_latest_release,
+    ensure_up_to_date,
+)
 from .aimbot import AimbotSettings
 
 SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "aimbot_settings.json")
@@ -178,3 +183,47 @@ class GUILogHandler(logging.Handler):
             self.log_queue.put(self.format(record))
         except Exception:
             pass
+
+
+def run_update_dialog(parent: tk.Tk, force: bool = False) -> None:
+    """Show update progress dialog and execute the updater in a thread."""
+
+    progress_dialog = UpdateProgressDialog(parent)
+
+    def progress_callback(message: str) -> None:
+        progress_dialog.update_status(
+            message,
+            is_error="fail" in message.lower() or "error" in message.lower(),
+        )
+
+    def update_thread() -> None:
+        try:
+            if progress_dialog.cancelled:
+                return
+
+            current_version = _get_current_version()
+            if current_version:
+                progress_callback(f"Current version: {current_version[:7]}")
+
+            release = _get_latest_release()
+            if release:
+                tag = release.get("tag_name", "")
+                if tag.startswith("build-"):
+                    progress_callback(f"Latest version: {tag[6:][:7]}")
+
+            if progress_dialog.cancelled:
+                progress_callback("Update cancelled before download started")
+                return
+
+            ensure_up_to_date(
+                progress_callback,
+                force=force,
+                cancel_check=lambda: progress_dialog.cancelled,
+            )
+        except SystemExit:
+            os._exit(0)
+        except Exception as exc:
+            progress_callback(f"Update failed: {exc}")
+            progress_dialog.enable_close()
+
+    threading.Thread(target=update_thread, daemon=True).start()
