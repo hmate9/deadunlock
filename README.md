@@ -1,5 +1,10 @@
 # DeadUnlock
 
+Builds are automatically generated on every push and published under the
+[releases](https://github.com/hmate9/deadunlock/releases). Grab the latest
+`aimbot_gui.exe` from the
+[latest release](https://github.com/hmate9/deadunlock/releases/latest).
+
 Aimbot and ESP for Valve's Deadlock game.
 
 ## About
