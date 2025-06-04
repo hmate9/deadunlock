@@ -1,6 +1,6 @@
 # DeadUnlock
 
-<img src="img/deadunlock_icon.png" alt="Project icon" width="128" align="right">
+<img src="img/deadunlock_icon.png" alt="Project icon" width="128" align="left">
 
 Aimbot and ESP for Valve's Deadlock game.
 
