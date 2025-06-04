@@ -149,11 +149,20 @@ def update_available() -> bool:
         return bool(local and remote and local != remote)
 
 
+def _pause(msg: str = "Press Enter to continue...") -> None:
+    """Pause for user acknowledgement when running with a console."""
+    if not _is_binary_release():
+        try:
+            input(msg)
+        except Exception:
+            pass
+
+
 def ensure_up_to_date() -> None:
     """Update to the latest version if outdated and exit."""
     if not update_available():
         return
-        
+
     if _is_binary_release():
         print("Your DeadUnlock binary is out of date. Downloading update...")
         
@@ -161,7 +170,7 @@ def ensure_up_to_date() -> None:
         latest_release = _get_latest_release()
         if not latest_release:
             print("Failed to fetch latest release information.")
-            input("Press Enter to continue...")
+            _pause()
             return
             
         # Find the executable asset
@@ -174,13 +183,13 @@ def ensure_up_to_date() -> None:
                 
         if not exe_asset:
             print("No executable found in latest release.")
-            input("Press Enter to continue...")
+            _pause()
             return
             
         download_url = exe_asset.get("browser_download_url")
         if not download_url:
             print("Failed to get download URL.")
-            input("Press Enter to continue...")
+            _pause()
             return
             
         # Get current executable path
@@ -195,11 +204,11 @@ def ensure_up_to_date() -> None:
                 sys.exit(0)
             except Exception as e:
                 print(f"Failed to restart application: {e}")
-                input("Please restart the application manually. Press Enter to exit...")
+                _pause("Please restart the application manually. Press Enter to exit...")
                 sys.exit(0)
         else:
             print("Update failed. Continuing with current version.")
-            input("Press Enter to continue...")
+            _pause()
     else:
         # For source installations, use git pull
         print("Your DeadUnlock copy is out of date. Pulling updates...")
@@ -209,8 +218,8 @@ def ensure_up_to_date() -> None:
         except Exception as exc:
             print(f"Failed to update automatically: {exc}")
             print("Please run 'git pull' manually.")
-            input("Press Enter to exit...")
+            _pause("Press Enter to exit...")
             sys.exit(1)
         print("Update complete. Please restart the program.")
-        input("Press Enter to exit...")
+        _pause("Press Enter to exit...")
         sys.exit(0)
