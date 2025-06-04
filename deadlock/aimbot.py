@@ -14,8 +14,11 @@ relies on ``win32api`` to query mouse button state.
 from dataclasses import dataclass
 import random
 import time
+import logging
+import argparse
 
-import win32api
+logger = logging.getLogger(__name__)
+
 
 try:
     from .heroes import get_body_bone_index, get_head_bone_index
@@ -54,10 +57,22 @@ class AimbotSettings:
 
 class Aimbot:
     """Basic aimbot controller."""
-    
-    def __init__(self, mem: DeadlockMemory, settings: AimbotSettings | None = None) -> None:
+
+    def __init__(
+        self,
+        mem: DeadlockMemory,
+        settings: AimbotSettings | None = None,
+        win32=None,
+    ) -> None:
         """Create a new aimbot bound to ``mem``."""
 
+        if win32 is None:
+            try:
+                import win32api as win32
+            except Exception as exc:  # pragma: no cover - platform specific
+                raise RuntimeError("win32api is required to run the aimbot") from exc
+
+        self.win32api = win32
         self.mem = mem
         self.settings = settings or AimbotSettings()
         self.locked_on: int | None = None
@@ -67,13 +82,16 @@ class Aimbot:
         """Extend ``force_aim_until`` when ability keys are pressed."""
         now = time.time()
         if hero.name == "GreyTalon" and self.settings.grey_talon_lock > 0:
-            if win32api.GetKeyState(0x51) < 0:  # Q
+            if self.win32api.GetKeyState(0x51) < 0:  # Q
+                logger.debug("Grey Talon ability lock triggered")
                 self.force_aim_until = max(self.force_aim_until, now + self.settings.grey_talon_lock)
         elif hero.name == "Yamato" and self.settings.yamato_lock > 0:
-            if win32api.GetKeyState(0x51) < 0:  # Q
+            if self.win32api.GetKeyState(0x51) < 0:  # Q
+                logger.debug("Yamato ability lock triggered")
                 self.force_aim_until = max(self.force_aim_until, now + self.settings.yamato_lock)
         elif hero.name == "Vindicta" and self.settings.vindicta_lock > 0:
-            if win32api.GetKeyState(0x52) < 0:  # R
+            if self.win32api.GetKeyState(0x52) < 0:  # R
+                logger.debug("Vindicta ability lock triggered")
                 self.force_aim_until = max(self.force_aim_until, now + self.settings.vindicta_lock)
 
     def should_aim_for_head(self) -> bool:
@@ -84,13 +102,16 @@ class Aimbot:
     def run(self) -> None:
         """Main aimbot loop."""
 
+        logger.info("Aimbot loop started")
         while True:
             my_data = self.mem.read_entity(0)
             self._update_ability_lock(my_data["hero"])
 
-            mouse_down = win32api.GetKeyState(0x01) < 0 or time.time() < self.force_aim_until
+            mouse_down = self.win32api.GetKeyState(0x01) < 0 or time.time() < self.force_aim_until
             if not mouse_down:
                 # Left mouse button is not held and no ability lock active
+                if self.locked_on is not None:
+                    logger.debug("Lock released")
                 self.locked_on = None
                 time.sleep(0.01)
                 continue
@@ -125,6 +146,8 @@ class Aimbot:
                             best_score = score
                             target_idx = i
                 self.locked_on = target_idx
+                if target_idx is not None:
+                    logger.debug("Locked on to entity %s", target_idx)
 
             if self.locked_on is None:
                 time.sleep(0.01)
@@ -164,7 +187,20 @@ class Aimbot:
             time.sleep(0.001)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    """Entry point for the ``deadlock.aimbot`` CLI."""
+
+    parser = argparse.ArgumentParser(description="Deadlock aimbot")
+    parser.add_argument(
+        "--debug", action="store_true", help="enable debug logging"
+    )
+    args = parser.parse_args(argv)
+
+    logging.basicConfig(
+        level=logging.DEBUG if args.debug else logging.INFO,
+        format="%(asctime)s %(levelname)s:%(name)s:%(message)s",
+    )
+
     ensure_up_to_date()
     mem = DeadlockMemory()
     bot = Aimbot(mem)

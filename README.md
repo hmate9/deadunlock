@@ -45,6 +45,12 @@ python -m deadlock.aimbot
 The script connects to the game's process and continually adjusts your camera
 towards enemy targets.
 
+Add ``--debug`` to enable verbose logging useful for troubleshooting:
+
+```bash
+python -m deadlock.aimbot --debug
+```
+
 #### Hero ability lock
 
 When playing **Grey Talon** or **Yamato**, pressing **Q** (ability 1) keeps the

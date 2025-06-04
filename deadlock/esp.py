@@ -6,7 +6,9 @@ import ctypes
 import time
 
 import numpy as np
-import pygame
+import logging
+
+logger = logging.getLogger(__name__)
 
 from .helpers import world_to_screen
 from .memory import DeadlockMemory
@@ -20,14 +22,26 @@ class ESP:
         """Create an overlay bound to ``mem``."""
 
         self.mem = mem
-        pygame.init()
-        info = pygame.display.Info()
-        self.screen = pygame.display.set_mode((info.current_w, info.current_h), pygame.NOFRAME | pygame.SRCALPHA)
-        pygame.display.set_caption("ESP Overlay")
-        self.clock = pygame.time.Clock()
+        try:
+            import pygame
+        except Exception as exc:  # pragma: no cover - platform specific
+            raise RuntimeError("pygame is required for the ESP overlay") from exc
 
-        hwnd = pygame.display.get_wm_info()["window"]
-        ctypes.windll.user32.SetWindowLongW(hwnd, -20, ctypes.windll.user32.GetWindowLongW(hwnd, -20) | 0x80000 | 0x20)
+        self.pygame = pygame
+        self.pygame.init()
+        info = self.pygame.display.Info()
+        self.screen = self.pygame.display.set_mode(
+            (info.current_w, info.current_h), self.pygame.NOFRAME | self.pygame.SRCALPHA
+        )
+        self.pygame.display.set_caption("ESP Overlay")
+        self.clock = self.pygame.time.Clock()
+
+        hwnd = self.pygame.display.get_wm_info()["window"]
+        ctypes.windll.user32.SetWindowLongW(
+            hwnd,
+            -20,
+            ctypes.windll.user32.GetWindowLongW(hwnd, -20) | 0x80000 | 0x20,
+        )
         ctypes.windll.user32.SetLayeredWindowAttributes(hwnd, 0, 255, 1)
 
     def draw_skeleton(self, bones, color=(255, 0, 0)) -> None:
@@ -47,8 +61,8 @@ class ESP:
             )
             if start_pos and end_pos:
                 # A line where start and end are identical produces a small dot.
-                pygame.draw.line(self.screen, color, start_pos, end_pos, 2)
-                font = pygame.font.Font(None, 18)
+                self.pygame.draw.line(self.screen, color, start_pos, end_pos, 2)
+                font = self.pygame.font.Font(None, 18)
                 text = font.render(str(idx), True, (255, 255, 255))
                 self.screen.blit(text, (start_pos[0], start_pos[1] - 10))
 
@@ -66,7 +80,7 @@ class ESP:
 
     def run(self) -> None:
         """Main overlay loop."""
-
+        logger.info("ESP overlay started")
         running = True
         while running:
             self.screen.fill((0, 0, 0, 0))
@@ -76,6 +90,7 @@ class ESP:
                     data = self.mem.read_entity(i)
                 except Exception:
                     continue
+                logger.debug("Drawing skeleton for entity %s", i)
                 bone_array = self.mem.read_longlong(data["node"] + 0x170 + 0x80)
                 bones = []
                 for b in range(0, 15):
@@ -87,10 +102,10 @@ class ESP:
                     bones.append((start, start))
                 self.draw_skeleton(bones)
 
-            pygame.display.flip()
+            self.pygame.display.flip()
             self.clock.tick(60)
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
+            for event in self.pygame.event.get():
+                if event.type == self.pygame.QUIT:
                     running = False
             time.sleep(0.001)
 
