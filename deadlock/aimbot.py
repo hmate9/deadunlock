@@ -85,6 +85,8 @@ class Aimbot:
         self.settings = settings or AimbotSettings()
         self.locked_on: int | None = None
         self.force_aim_until: float = 0.0
+        self.paused = False
+        self.stop_requested = False
         
         # Headshot decision caching
         self._headshot_cache: bool = False
@@ -123,6 +125,21 @@ class Aimbot:
         
         return self._headshot_cache
 
+    def pause(self) -> None:
+        """Pause the aimbot."""
+        self.paused = True
+        logger.info("Aimbot paused")
+    
+    def resume(self) -> None:
+        """Resume the aimbot."""
+        self.paused = False
+        logger.info("Aimbot resumed")
+    
+    def stop(self) -> None:
+        """Request the aimbot to stop."""
+        self.stop_requested = True
+        logger.info("Aimbot stop requested")
+
     def run(self) -> None:
         """Main aimbot loop."""
 
@@ -130,7 +147,12 @@ class Aimbot:
         active = False
         prev_locked = None
         hold_down_left_click = False
-        while True:
+        while not self.stop_requested:
+            # Check if paused
+            if self.paused:
+                time.sleep(0.1)
+                continue
+                
             my_data = self.mem.read_entity(0)
             self._update_ability_lock(my_data["hero"])
 
@@ -235,6 +257,8 @@ class Aimbot:
             )
             self.mem.set_angles(new_yaw, new_pitch)
             time.sleep(0.001)
+            
+        logger.info("Aimbot loop ended")
 
 
 def main(argv: list[str] | None = None) -> None:
