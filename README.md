@@ -1,5 +1,9 @@
 # DeadUnlock
 
+Aimbot and ESP for Valve's Deadlock game.
+
+## Note
+
 This repository is provided for educational and research purposes only. Use it at your own risk.
 
 ## About
