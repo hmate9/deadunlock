@@ -69,6 +69,16 @@ class AimbotApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("DeadUnlock Aimbot")
+        
+        # Set window icon
+        try:
+            icon_path = os.path.join(os.path.dirname(__file__), "..", "img", "deadunlock_icon.png")
+            if os.path.exists(icon_path):
+                icon = tk.PhotoImage(file=icon_path)
+                self.root.iconphoto(True, icon)
+        except Exception:
+            pass  # Ignore if icon can't be loaded
+        
         self.settings = load_saved_settings()
         self.bot: Aimbot | None = None
         self.bot_thread: threading.Thread | None = None
