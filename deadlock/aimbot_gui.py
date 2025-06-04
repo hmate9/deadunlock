@@ -2,280 +2,20 @@ from __future__ import annotations
 
 """Simple Tkinter GUI for configuring and running the aimbot."""
 
-import json
 import logging
 import os
 import queue
 import sys
 import threading
-import time
 import tkinter as tk
-from dataclasses import asdict
 from tkinter import messagebox, scrolledtext, ttk
 
 from .aimbot import Aimbot, AimbotSettings
 from .memory import DeadlockMemory
+from .gui_utils import UpdateProgressDialog, GUILogHandler, load_saved_settings, save_settings, get_build_sha
 from .update_checker import ensure_up_to_date, update_available, _get_current_version
 
-SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "aimbot_settings.json")
 
-
-def load_saved_settings() -> AimbotSettings:
-    """Return stored :class:`AimbotSettings` or defaults."""
-    try:
-        with open(SETTINGS_FILE, "r", encoding="utf-8") as fh:
-            data = json.load(fh)
-        return AimbotSettings(**data)
-    except Exception:
-        return AimbotSettings()
-
-
-def save_settings(settings: AimbotSettings) -> None:
-    """Persist ``settings`` to :data:`SETTINGS_FILE`."""
-    try:
-        with open(SETTINGS_FILE, "w", encoding="utf-8") as fh:
-            json.dump(asdict(settings), fh, indent=2)
-    except Exception as exc:
-        print(f"Failed to save settings: {exc}")
-
-
-def _get_build_sha() -> str:
-    """Return the short commit SHA for the current build."""
-    try:
-        sha = _get_current_version()
-        if sha:
-            return sha[:7]
-    except Exception:
-        pass
-    return "unknown"
-
-
-class UpdateProgressDialog:
-    """Progress dialog for showing update status."""
-    
-    def __init__(self, parent: tk.Tk):
-        self.dialog = tk.Toplevel(parent)
-        self.dialog.title("Updating DeadUnlock")
-        self.dialog.geometry("600x400")
-        self.dialog.resizable(False, False)
-        self.dialog.transient(parent)
-        self.dialog.grab_set()
-        
-        # Center the dialog
-        self.dialog.update_idletasks()
-        x = (self.dialog.winfo_screenwidth() // 2) - (600 // 2)
-        y = (self.dialog.winfo_screenheight() // 2) - (400 // 2)
-        self.dialog.geometry(f"600x400+{x}+{y}")
-        
-        # Set up the UI
-        main_frame = ttk.Frame(self.dialog, padding=20)
-        main_frame.pack(fill="both", expand=True)
-        
-        # Title
-        title_label = ttk.Label(main_frame, text="Updating DeadUnlock", font=("Arial", 16, "bold"))
-        title_label.pack(pady=(0, 15))
-        
-        # Progress frame
-        progress_frame = ttk.Frame(main_frame)
-        progress_frame.pack(fill="x", pady=(0, 10))
-        
-        # Progress bar (indeterminate initially)
-        self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(progress_frame, mode='indeterminate', length=500)
-        self.progress_bar.pack(pady=(0, 5))
-        self.progress_bar.start()
-        
-        # Progress percentage label
-        self.progress_label = ttk.Label(progress_frame, text="", font=("Arial", 9))
-        self.progress_label.pack()
-        
-        # Status text
-        self.status_label = ttk.Label(main_frame, text="Initializing update...", wraplength=550, font=("Arial", 11))
-        self.status_label.pack(pady=(0, 15))
-        
-        # Detailed log area
-        log_frame = ttk.LabelFrame(main_frame, text="Progress Details", padding=10)
-        log_frame.pack(fill="both", expand=True, pady=(10, 0))
-        
-        self.log_text = scrolledtext.ScrolledText(log_frame, height=12, width=70, state="disabled")
-        self.log_text.configure(background="#f8f8f8", foreground="#333333", font=("Consolas", 9))
-        self.log_text.pack(fill="both", expand=True)
-        
-        # Button frame
-        button_frame = ttk.Frame(main_frame)
-        button_frame.pack(fill="x", pady=(15, 0))
-        
-        # Close button (initially disabled)
-        self.close_button = ttk.Button(button_frame, text="Close", command=self.close_dialog, state="disabled")
-        self.close_button.pack(side="right")
-        
-        # Cancel button (for during update)
-        self.cancel_button = ttk.Button(button_frame, text="Cancel", command=self.cancel_update, state="disabled")
-        self.cancel_button.pack(side="right", padx=(0, 10))
-        
-        self.dialog.protocol("WM_DELETE_WINDOW", self.on_window_close)
-        self.closed = False
-        self.cancelled = False
-        
-    def update_status(self, message: str, is_error: bool = False):
-        """Update the status label and add to log."""
-        if self.closed:
-            return
-            
-        self.status_label.config(text=message)
-        
-        # Add to log with timestamp
-        self.log_text.config(state='normal')
-        timestamp = time.strftime("%H:%M:%S")
-        log_entry = f"[{timestamp}] {message}\n"
-        
-        # Color code different types of messages
-        if is_error:
-            self.log_text.insert(tk.END, log_entry)
-            # Highlight the last line in red
-            self.log_text.tag_add("error", "end-2c linestart", "end-2c")
-            self.log_text.tag_config("error", foreground="#cc0000")
-        elif "complete" in message.lower() or "success" in message.lower():
-            self.log_text.insert(tk.END, log_entry)
-            # Highlight in green
-            self.log_text.tag_add("success", "end-2c linestart", "end-2c")
-            self.log_text.tag_config("success", foreground="#008000")
-        elif "warning" in message.lower():
-            self.log_text.insert(tk.END, log_entry)
-            # Highlight in orange
-            self.log_text.tag_add("warning", "end-2c linestart", "end-2c")
-            self.log_text.tag_config("warning", foreground="#ff8800")
-        else:
-            self.log_text.insert(tk.END, log_entry)
-            
-        self.log_text.see(tk.END)
-        self.log_text.config(state='disabled')
-        
-        # Handle button states and progress bar based on message content
-        if "checking" in message.lower() or "connecting" in message.lower() or "found release" in message.lower():
-            # Enable cancel during initial phases
-            self.cancel_button.config(state="normal")
-        elif "downloading" in message.lower() and "%" in message:
-            # Enable cancel during download
-            self.cancel_button.config(state="normal")
-            try:
-                # Extract percentage and switch to determinate mode
-                import re
-                match = re.search(r'(\d+\.?\d*)%', message)
-                if match:
-                    percent = float(match.group(1))
-                    if self.progress_bar['mode'] != 'determinate':
-                        self.progress_bar.stop()
-                        self.progress_bar.config(mode='determinate', maximum=100)
-                    self.progress_bar['value'] = percent
-                    self.progress_label.config(text=f"{percent:.1f}%")
-            except:
-                pass
-        elif "creating backup" in message.lower() or "preparing update helper" in message.lower() or "launching" in message.lower():
-            # Disable cancel during critical phases
-            self.cancel_button.config(state="disabled")
-        elif is_error:
-            self.progress_bar.stop()
-            self.progress_bar.config(mode='determinate', maximum=100, value=0)
-            self.progress_label.config(text="Failed")
-            self.close_button.config(state="normal")
-            self.cancel_button.config(state="disabled")
-        elif "complete" in message.lower() or "launched" in message.lower():
-            self.progress_bar.stop()
-            self.progress_bar.config(mode='determinate', maximum=100, value=100)
-            self.progress_label.config(text="Complete")
-            self.cancel_button.config(state="disabled")
-            if "restart" in message.lower():
-                self.status_label.config(text="Update complete! Application will restart shortly...")
-                self.dialog.after(3000, self.close_dialog)  # Auto-close after 3 seconds
-            else:
-                self.close_button.config(state="normal")
-        elif "preparing" in message.lower() or "creating" in message.lower() or "verifying" in message.lower():
-            # Enable cancel for most preparation phases, but switch back to indeterminate for non-download tasks
-            if "backup" not in message.lower() and "helper" not in message.lower():
-                self.cancel_button.config(state="normal")
-            if self.progress_bar['mode'] == 'determinate' and self.progress_bar['value'] < 100:
-                pass  # Keep determinate mode if we're in middle of download
-            elif "download" not in message.lower():
-                self.progress_bar.config(mode='indeterminate')
-                self.progress_label.config(text="")
-                if not self.progress_bar.cget('mode') == 'indeterminate':
-                    self.progress_bar.start()
-        
-        self.dialog.update()
-        
-    def set_progress(self, value: float, maximum: float = 100.0):
-        """Set progress bar value."""
-        if self.closed:
-            return
-        self.progress_bar.stop()
-        self.progress_bar.config(mode='determinate', maximum=maximum, value=value)
-        self.progress_label.config(text=f"{(value/maximum)*100:.1f}%")
-        
-    def enable_close(self):
-        """Enable the close button."""
-        self.close_button.config(state="normal")
-        self.cancel_button.config(state="disabled")
-        
-    def cancel_update(self):
-        """Cancel the update process."""
-        self.cancelled = True
-        self.cancel_button.config(state="disabled")
-        self.update_status("Update cancelled by user", is_error=True)
-        self.close_button.config(state="normal")
-        
-    def close_dialog(self):
-        """Close the dialog."""
-        self.closed = True
-        self.dialog.destroy()
-        
-    def on_window_close(self):
-        """Handle window close event."""
-        # Always allow closing if there's an error or if update is complete
-        if self.close_button['state'] == 'normal':
-            self.close_dialog()
-            return
-            
-        # Allow closing if cancel is available (during safe phases)
-        if self.cancel_button['state'] == 'normal':
-            # Ask user for confirmation during active update
-            result = messagebox.askyesno(
-                "Cancel Update",
-                "An update is in progress. Are you sure you want to cancel?",
-                parent=self.dialog
-            )
-            if result:
-                self.cancel_update()
-                return
-        else:
-            # During critical phases, ask if user really wants to force close
-            result = messagebox.askyesno(
-                "Force Close",
-                "Update is in a critical phase. Force closing may leave the application in an unstable state.\n\nForce close anyway?",
-                parent=self.dialog
-            )
-            if result:
-                self.cancelled = True
-                self.close_dialog()
-                return
-        
-        # If user chose not to close, do nothing (don't close the window)
-
-
-class GUILogHandler(logging.Handler):
-    """Custom log handler that sends log messages to a queue for GUI display."""
-    
-    def __init__(self, log_queue: queue.Queue):
-        super().__init__()
-        self.log_queue = log_queue
-    
-    def emit(self, record: logging.LogRecord) -> None:
-        """Send log record to the queue."""
-        try:
-            log_entry = self.format(record)
-            self.log_queue.put(log_entry)
-        except Exception:
-            pass  # Ignore errors in logging
 
 
 class AimbotApp:
@@ -449,7 +189,20 @@ class AimbotApp:
             messagebox.showerror("Force Update Failed", f"Failed to update: {exc}")
 
     def _build_widgets(self) -> None:
-        # apply a slightly more modern theme if available
+
+        self._configure_style()
+        self._create_menu()
+
+        main_frame = ttk.Frame(self.root, padding=10)
+        main_frame.grid(row=0, column=0, sticky="nsew")
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+
+        self._build_settings_frame(main_frame)
+        self._build_status_frame(main_frame)
+        self._build_log_frame(main_frame)
+        self._add_build_label(main_frame)
+    def _configure_style(self) -> None:
         style = ttk.Style(self.root)
         if "clam" in style.theme_names():
             style.theme_use("clam")
@@ -459,108 +212,81 @@ class AimbotApp:
         style.configure("TLabel", padding=(2, 2))
         style.configure("TCheckbutton", padding=(2, 2))
 
-        # Create menu bar
+    def _create_menu(self) -> None:
         menubar = tk.Menu(self.root)
         self.root.config(menu=menubar)
-
-        # Help menu
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Help", menu=help_menu)
         help_menu.add_command(label="Check for Updates", command=self._check_for_updates)
         help_menu.add_command(label="Force Update", command=self._force_update)
-        
-        # Main container
-        main_frame = ttk.Frame(self.root, padding=10)
-        main_frame.grid(row=0, column=0, sticky="nsew")
-        self.root.columnconfigure(0, weight=1)
-        self.root.rowconfigure(0, weight=1)
-        
-        # Settings frame
-        settings_frame = ttk.LabelFrame(main_frame, text="Settings", padding=10)
-        settings_frame.grid(row=0, column=0, sticky="ew", padx=(0, 5))
-        
+
+    def _build_settings_frame(self, parent: ttk.Frame) -> None:
+        frame = ttk.LabelFrame(parent, text="Settings", padding=10)
+        frame.grid(row=0, column=0, sticky="ew", padx=(0, 5))
         row = 0
-        ttk.Label(settings_frame, text="Headshot probability").grid(row=row, column=0, sticky="w")
+        ttk.Label(frame, text="Headshot probability").grid(row=row, column=0, sticky="w")
         self.headshot_var = tk.DoubleVar(value=self.settings.headshot_probability)
-        ttk.Entry(settings_frame, textvariable=self.headshot_var, width=5).grid(row=row, column=1, sticky="w")
+        ttk.Entry(frame, textvariable=self.headshot_var, width=5).grid(row=row, column=1, sticky="w")
         row += 1
-
-        ttk.Label(settings_frame, text="Target select").grid(row=row, column=0, sticky="w")
+        ttk.Label(frame, text="Target select").grid(row=row, column=0, sticky="w")
         self.target_var = tk.StringVar(value=self.settings.target_select_type)
-        ttk.Combobox(settings_frame, textvariable=self.target_var, values=["fov", "distance"], width=8).grid(row=row, column=1, sticky="w")
+        ttk.Combobox(frame, textvariable=self.target_var, values=["fov", "distance"], width=8).grid(row=row, column=1, sticky="w")
         row += 1
-
-        ttk.Label(settings_frame, text="Smooth speed").grid(row=row, column=0, sticky="w")
+        ttk.Label(frame, text="Smooth speed").grid(row=row, column=0, sticky="w")
         self.smooth_var = tk.DoubleVar(value=self.settings.smooth_speed)
-        ttk.Entry(settings_frame, textvariable=self.smooth_var, width=5).grid(row=row, column=1, sticky="w")
+        ttk.Entry(frame, textvariable=self.smooth_var, width=5).grid(row=row, column=1, sticky="w")
         row += 1
-
-        # Hero ability lock keybinds
-        hero_frame = ttk.LabelFrame(settings_frame, text="Hero Ability Locks", padding=5)
+        hero_frame = ttk.LabelFrame(frame, text="Hero Ability Locks", padding=5)
         hero_frame.grid(row=row, column=0, columnspan=2, sticky="ew", pady=(5, 0))
         hero_row = 0
         ttk.Label(hero_frame, text="Hero").grid(row=hero_row, column=0, sticky="w")
         ttk.Label(hero_frame, text="Keybind").grid(row=hero_row, column=1, sticky="w")
         hero_row += 1
-
         self.grey_enabled = tk.BooleanVar(value=self.settings.grey_talon_lock_enabled)
         ttk.Checkbutton(hero_frame, text="Grey Talon", variable=self.grey_enabled).grid(row=hero_row, column=0, sticky="w")
         self.grey_key = tk.StringVar(value=chr(self.settings.grey_talon_key))
         ttk.Entry(hero_frame, textvariable=self.grey_key, width=3).grid(row=hero_row, column=1, sticky="w")
         hero_row += 1
-
         self.yamato_enabled = tk.BooleanVar(value=self.settings.yamato_lock_enabled)
         ttk.Checkbutton(hero_frame, text="Yamato", variable=self.yamato_enabled).grid(row=hero_row, column=0, sticky="w")
         self.yamato_key = tk.StringVar(value=chr(self.settings.yamato_key))
         ttk.Entry(hero_frame, textvariable=self.yamato_key, width=3).grid(row=hero_row, column=1, sticky="w")
         hero_row += 1
-
         self.vindicta_enabled = tk.BooleanVar(value=self.settings.vindicta_lock_enabled)
         ttk.Checkbutton(hero_frame, text="Vindicta", variable=self.vindicta_enabled).grid(row=hero_row, column=0, sticky="w")
         self.vindicta_key = tk.StringVar(value=chr(self.settings.vindicta_key))
         ttk.Entry(hero_frame, textvariable=self.vindicta_key, width=3).grid(row=hero_row, column=1, sticky="w")
         hero_row += 1
-
         row += 1
-
-        # Control buttons
-        control_frame = ttk.Frame(settings_frame)
+        control_frame = ttk.Frame(frame)
         control_frame.grid(row=row, column=0, columnspan=2, pady=10, sticky="ew")
-        
         self.start_button = ttk.Button(control_frame, text="Start", command=self.start)
         self.start_button.pack(side="left", padx=(0, 5))
-        
         self.pause_button = ttk.Button(control_frame, text="Pause", command=self.toggle_pause, state="disabled")
         self.pause_button.pack(side="left", padx=(0, 5))
-        
         self.stop_button = ttk.Button(control_frame, text="Stop", command=self.stop, state="disabled")
         self.stop_button.pack(side="left")
-        
-        # Status frame
-        status_frame = ttk.LabelFrame(main_frame, text="Status", padding=5)
-        status_frame.grid(row=1, column=0, sticky="ew", pady=(10, 0), padx=(0, 5))
-        
-        self.status_label = ttk.Label(status_frame, text="Status: Stopped", foreground="red")
+
+    def _build_status_frame(self, parent: ttk.Frame) -> None:
+        frame = ttk.LabelFrame(parent, text="Status", padding=5)
+        frame.grid(row=1, column=0, sticky="ew", pady=(10, 0), padx=(0, 5))
+        self.status_label = ttk.Label(frame, text="Status: Stopped", foreground="red")
         self.status_label.pack()
-        
-        # Log frame
-        log_frame = ttk.LabelFrame(main_frame, text="Log", padding=5)
-        log_frame.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=(5, 0))
-        main_frame.columnconfigure(1, weight=1)
-        main_frame.rowconfigure(0, weight=1)
-        
-        self.log_text = scrolledtext.ScrolledText(log_frame, width=50, height=20, state="disabled")
+
+    def _build_log_frame(self, parent: ttk.Frame) -> None:
+        frame = ttk.LabelFrame(parent, text="Log", padding=5)
+        frame.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=(5, 0))
+        parent.columnconfigure(1, weight=1)
+        parent.rowconfigure(0, weight=1)
+        self.log_text = scrolledtext.ScrolledText(frame, width=50, height=20, state="disabled")
         self.log_text.configure(background="#1e1e1e", foreground="#dcdcdc", insertbackground="#ffffff")
         self.log_text.pack(fill="both", expand=True)
+        ttk.Button(frame, text="Clear Log", command=self.clear_log).pack(pady=(5, 0))
 
-        # Clear log button
-        ttk.Button(log_frame, text="Clear Log", command=self.clear_log).pack(pady=(5, 0))
-
-        # Build SHA label (small, bottom-right)
-        sha = _get_build_sha()
-        self.build_label = ttk.Label(main_frame, text=f"build {sha}", font=("TkDefaultFont", 8))
+    def _add_build_label(self, parent: ttk.Frame) -> None:
+        sha = get_build_sha()
+        self.build_label = ttk.Label(parent, text=f"build {sha}", font=("TkDefaultFont", 8))
         self.build_label.grid(row=2, column=1, sticky="e", padx=(0, 2), pady=(2, 0))
-
     def _process_log_queue(self) -> None:
         """Process log messages from queue and display them in the log text widget."""
         try:
