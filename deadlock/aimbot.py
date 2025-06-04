@@ -16,6 +16,7 @@ import random
 import time
 import logging
 import argparse
+import ctypes
 
 import win32api
 
@@ -114,9 +115,22 @@ class Aimbot:
         logger.info("Aimbot loop started")
         active = False
         prev_locked = None
+        hold_down_left_click = False
         while True:
             my_data = self.mem.read_entity(0)
             self._update_ability_lock(my_data["hero"])
+
+            if not hold_down_left_click and win32api.GetKeyState(0x02) < 0:
+                hold_down_left_click = True
+                ctypes.windll.user32.mouse_event(2, 0, 0, 0, 0)
+
+            if hold_down_left_click and win32api.GetKeyState(0x02) >= 0:
+                hold_down_left_click = False
+                ctypes.windll.user32.mouse_event(4, 0, 0, 0, 0)
+
+            if hold_down_left_click:
+                time.sleep(0.01)
+                continue
 
             mouse_down = win32api.GetKeyState(0x01) < 0 or time.time() < self.force_aim_until
             if mouse_down != active:
