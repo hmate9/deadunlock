@@ -90,3 +90,21 @@ If Valve updates Deadlock and the underlying code changes, these patterns may no
 Outdated signatures will result in missing or incorrect offsets, causing other tools in this
 repository to malfunction. When that happens, the signatures need to be updated by scanning the
 new game binaries for the correct patterns.
+
+## Building a standalone executable
+
+You can package the GUI into a single Windows executable using
+[PyInstaller](https://pyinstaller.org/). Install it first:
+
+```bash
+pip install pyinstaller
+```
+
+Then create the executable with:
+
+```bash
+pyinstaller --onefile deadlock/aimbot_gui.py
+```
+
+The resulting `.exe` will be placed in the `dist` folder and can be run on
+machines without Python installed.
