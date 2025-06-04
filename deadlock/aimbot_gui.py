@@ -314,29 +314,44 @@ class AimbotApp:
                     if result:
                         run_update_dialog(self.root)
                         return  # Don't start aimbot if updating
-            
-            mem = DeadlockMemory()
-            self.bot = Aimbot(mem, self.settings)
-            
+
             self.is_running = True
             self.is_paused = False
-            self._update_status("Running", "green")
+            self._update_status("Starting...", "blue")
             self._update_button_states()
-            
-            # Start aimbot in a separate thread
-            self.bot_thread = threading.Thread(target=self._run_aimbot, daemon=True)
+
+            # Start initialisation and aimbot in a separate thread
+            self.bot_thread = threading.Thread(
+                target=self._initialise_and_run, daemon=True
+            )
             self.bot_thread.start()
-            
-            self.log_text.config(state='normal')
-            self.log_text.insert(tk.END, "Aimbot started successfully.\n")
-            self.log_text.see(tk.END)
-            self.log_text.config(state='disabled')
-            
+
         except Exception as e:
             self._update_status("Error", "red")
             self.is_running = False
             self._update_button_states()
             messagebox.showerror("Error", f"Failed to start aimbot: {str(e)}")
+
+    def _initialise_and_run(self) -> None:
+        """Initialise memory and run the aimbot."""
+        try:
+            mem = DeadlockMemory()
+            self.bot = Aimbot(mem, self.settings)
+            self.log_queue.put("Aimbot started successfully.")
+            self.root.after(0, lambda: (
+                self._update_status("Running", "green"),
+                self._update_button_states()
+            ))
+            self._run_aimbot()
+        except Exception as exc:
+            self.is_running = False
+            msg = str(exc)
+            self.log_queue.put(f"Aimbot init error: {msg}")
+            self.root.after(0, lambda: (
+                self._update_status("Error", "red"),
+                self._update_button_states(),
+                messagebox.showerror("Error", f"Failed to start aimbot: {msg}")
+            ))
     
     def _run_aimbot(self) -> None:
         """Run the aimbot loop with pause support."""
