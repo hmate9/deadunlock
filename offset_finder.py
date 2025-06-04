@@ -7,6 +7,7 @@ from ctypes import wintypes
 import struct
 from dataclasses import dataclass
 from typing import Dict, Optional
+import logging
 
 import psutil
 
@@ -18,6 +19,8 @@ PROCESS_VM_READ = 0x0010
 
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 psapi = ctypes.WinDLL("psapi", use_last_error=True)
+
+logger = logging.getLogger(__name__)
 
 class MODULEINFO(ctypes.Structure):
     _fields_ = [
@@ -133,10 +136,13 @@ def read_process_memory(handle: wintypes.HANDLE, address: int, size: int) -> byt
 
 def find_offsets(process_name: str) -> Dict[str, int]:
     """Scan ``process_name`` for known signatures and return their offsets."""
+
+    logger.info("Scanning %s for offsets", process_name)
     sigs = {
         name: Signature(pattern, offset, extra)
         for name, (pattern, offset, extra) in SIGNATURE_PATTERNS.items()
     }
+    logger.info("Looking for offsets: %s", ", ".join(sigs.keys()))
 
     handle = get_process_handle(process_name)
     if not handle:
@@ -149,16 +155,34 @@ def find_offsets(process_name: str) -> Dict[str, int]:
         kernel32.CloseHandle(handle)
         raise RuntimeError('Required modules not found')
 
+    logger.debug("client.dll base=0x%X size=0x%X", client.lpBaseOfDll, client.SizeOfImage)
+    logger.debug(
+        "schemasystem.dll base=0x%X size=0x%X",
+        schemas.lpBaseOfDll,
+        schemas.SizeOfImage,
+    )
+
     client_mem = read_process_memory(handle, client.lpBaseOfDll, client.SizeOfImage)
     schema_mem = read_process_memory(handle, schemas.lpBaseOfDll, schemas.SizeOfImage)
 
-    offsets = {
-        "local_player_controller": sigs["local_player_controller"].find(client_mem, client.lpBaseOfDll),
-        "view_matrix": sigs["view_matrix"].find(client_mem, client.lpBaseOfDll),
-        "entity_list": sigs["entity_list"].find(client_mem, client.lpBaseOfDll),
-        "camera_manager": sigs["camera_manager"].find(client_mem, client.lpBaseOfDll),
-        "schema_system_interface": sigs["schema_system_interface"].find(schema_mem, schemas.lpBaseOfDll),
-    }
+    offsets = {}
+
+    logger.debug("Scanning client.dll for offsets")
+    for name in [
+        "local_player_controller",
+        "view_matrix",
+        "entity_list",
+        "camera_manager",
+    ]:
+        logger.info("Locating %s", name)
+        offsets[name] = sigs[name].find(client_mem, client.lpBaseOfDll)
+        logger.debug("%s offset: 0x%X", name, offsets[name])
+
+    logger.debug("Scanning schemasystem.dll for offsets")
+    name = "schema_system_interface"
+    logger.info("Locating %s", name)
+    offsets[name] = sigs[name].find(schema_mem, schemas.lpBaseOfDll)
+    logger.debug("%s offset: 0x%X", name, offsets[name])
 
     kernel32.CloseHandle(handle)
     return offsets
@@ -166,6 +190,10 @@ def find_offsets(process_name: str) -> Dict[str, int]:
 
 def main(process_name: str = "deadlock.exe") -> None:
     """Entry point printing offsets for ``process_name``."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
     offs = find_offsets(process_name)
     print("offsets = {")
     for key, value in offs.items():
