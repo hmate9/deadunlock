@@ -41,16 +41,39 @@ class AimbotSettings:
     smooth_speed: float = 5.0
     #: maximum angle change (degrees) per frame when locking on
 
+    grey_talon_lock: float = 0.5
+    #: seconds to keep aiming after Grey Talon's ability 1 (``Q``)
+
+    yamato_lock: float = 1.5
+    #: seconds to keep aiming after Yamato's ability 1 (``Q``)
+
+    vindicta_lock: float = 0.65
+    #: seconds to keep aiming after Vindicta's ability 4 (``R``)
+
 
 class Aimbot:
     """Basic aimbot controller."""
     
     def __init__(self, mem: DeadlockMemory, settings: AimbotSettings | None = None) -> None:
         """Create a new aimbot bound to ``mem``."""
-        
+
         self.mem = mem
         self.settings = settings or AimbotSettings()
         self.locked_on: int | None = None
+        self.force_aim_until: float = 0.0
+
+    def _update_ability_lock(self, hero) -> None:
+        """Extend ``force_aim_until`` when ability keys are pressed."""
+        now = time.time()
+        if hero.name == "GreyTalon" and self.settings.grey_talon_lock > 0:
+            if win32api.GetKeyState(0x51) < 0:  # Q
+                self.force_aim_until = max(self.force_aim_until, now + self.settings.grey_talon_lock)
+        elif hero.name == "Yamato" and self.settings.yamato_lock > 0:
+            if win32api.GetKeyState(0x51) < 0:  # Q
+                self.force_aim_until = max(self.force_aim_until, now + self.settings.yamato_lock)
+        elif hero.name == "Vindicta" and self.settings.vindicta_lock > 0:
+            if win32api.GetKeyState(0x52) < 0:  # R
+                self.force_aim_until = max(self.force_aim_until, now + self.settings.vindicta_lock)
 
     def should_aim_for_head(self) -> bool:
         """Return ``True`` if the bot should attempt a headshot."""
@@ -61,16 +84,18 @@ class Aimbot:
         """Main aimbot loop."""
 
         while True:
-            # Only run aimbot when left mouse button is held down
-            if win32api.GetKeyState(0x01) >= 0:
-                # Left mouse button is not held down, reset target and continue
+            my_data = self.mem.read_entity(0)
+            self._update_ability_lock(my_data["hero"])
+
+            mouse_down = win32api.GetKeyState(0x01) < 0 or time.time() < self.force_aim_until
+            if not mouse_down:
+                # Left mouse button is not held and no ability lock active
                 self.locked_on = None
                 time.sleep(0.01)
                 continue
 
             cam_pos = self.mem.camera_position()
             current_yaw, current_pitch = self.mem.current_angles()
-            my_data = self.mem.read_entity(0)
 
             if self.locked_on is None:
                 target_idx = None
