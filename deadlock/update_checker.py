@@ -71,39 +71,69 @@ def _get_current_version() -> Optional[str]:
 
 
 def _download_and_replace_executable(download_url: str, current_exe_path: str) -> bool:
-    """Download new executable and replace current one. Return True on success."""
+    """Download a new executable and schedule replacement after exit."""
     try:
         print("Downloading update...")
-        
+
         # Download to temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.exe') as temp_file:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".exe") as temp_file:
             temp_path = temp_file.name
-            
+
         resp = requests.get(download_url, stream=True, timeout=30)
         resp.raise_for_status()
-        
-        with open(temp_path, 'wb') as f:
+
+        with open(temp_path, "wb") as f:
             for chunk in resp.iter_content(chunk_size=8192):
                 f.write(chunk)
-        
-        print("Download complete. Replacing executable...")
-        
+
+        print("Download complete. Preparing update helper...")
+
         # Create backup of current executable
         backup_path = current_exe_path + ".backup"
         if os.path.exists(backup_path):
             os.remove(backup_path)
         shutil.copy2(current_exe_path, backup_path)
-        
-        # Replace current executable
-        shutil.move(temp_path, current_exe_path)
-        
-        print("Update complete!")
+
+        # Write helper script that waits for the current process to exit,
+        # replaces the executable and launches the new one
+        helper_code = f"""
+import os
+import shutil
+import subprocess
+import sys
+import time
+
+OLD = r"{current_exe_path}"
+NEW = r"{temp_path}"
+
+for _ in range(30):
+    try:
+        os.remove(OLD)
+        break
+    except PermissionError:
+        time.sleep(1)
+    except FileNotFoundError:
+        break
+else:
+    sys.exit(1)
+
+shutil.move(NEW, OLD)
+subprocess.Popen([OLD])
+"""
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w", encoding="utf-8") as helper:
+            helper.write(helper_code)
+            helper_path = helper.name
+
+        subprocess.Popen([sys.executable, helper_path])
+
+        print("Updater launched. Exiting current instance...")
         return True
-        
+
     except Exception as e:
         print(f"Failed to download/install update: {e}")
         # Clean up temp file if it exists
-        if 'temp_path' in locals() and os.path.exists(temp_path):
+        if "temp_path" in locals() and os.path.exists(temp_path):
             try:
                 os.remove(temp_path)
             except Exception:
@@ -197,15 +227,8 @@ def ensure_up_to_date() -> None:
         
         # Download and replace
         if _download_and_replace_executable(download_url, current_exe_path):
-            print("Update complete. Restarting...")
-            # Restart the application
-            try:
-                subprocess.Popen([current_exe_path])
-                sys.exit(0)
-            except Exception as e:
-                print(f"Failed to restart application: {e}")
-                _pause("Please restart the application manually. Press Enter to exit...")
-                sys.exit(0)
+            print("Update helper launched. Exiting for update...")
+            sys.exit(0)
         else:
             print("Update failed. Continuing with current version.")
             _pause()
