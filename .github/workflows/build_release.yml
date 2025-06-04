@@ -20,7 +20,20 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller      
+          pip install pyinstaller pillow      
+      - name: Convert PNG to ICO
+        run: |
+          python -c "
+          from PIL import Image
+          import os
+          
+          # Convert PNG to ICO
+          img = Image.open('img/deadunlock_icon.png')
+          # Create ICO with multiple sizes
+          img.save('img/deadunlock_icon.ico', format='ICO', sizes=[(16,16), (32,32), (48,48), (64,64), (128,128)])
+          print('Icon converted successfully')
+          "
+      
       - name: Build executable
         run: |
           echo ${{ github.sha }} > version.txt
@@ -35,6 +48,7 @@ jobs:
         with:
           tag_name: ${{ steps.vars.outputs.tag }}
           name: ${{ steps.vars.outputs.tag }}
-          files: dist/aimbot_gui.exe
+          files: |
+            dist/aimbot_gui.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN  }}
