@@ -1,8 +1,15 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
 from pathlib import Path
 
-project_root = Path(__file__).resolve().parent
+# Get the directory where this spec file is located
+# Use os.getcwd() as fallback if __file__ is not available
+try:
+    project_root = Path(__file__).resolve().parent
+except NameError:
+    project_root = Path(os.getcwd())
+
 icon_file = project_root / 'img' / 'deadunlock_icon.ico'
 
 a = Analysis(
