@@ -6,6 +6,10 @@
 
 Aimbot and ESP for Valve's Deadlock game.
 
+<p align="center">
+  <img src="img/output.gif" alt="Demo of DeadUnlock in action" width="600">
+</p>
+
 This is an **external hack**, meaning the scripts run in a separate
 process and manipulate the game's memory from the outside rather than
 injecting code into the executable. It uses standard Windows APIs to
