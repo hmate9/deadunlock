@@ -85,6 +85,11 @@ class Aimbot:
         self.settings = settings or AimbotSettings()
         self.locked_on: int | None = None
         self.force_aim_until: float = 0.0
+        
+        # Headshot decision caching
+        self._headshot_cache: bool = False
+        self._headshot_cache_time: float = 0.0
+        self._headshot_cache_interval: float = 0.4
 
         logger.info("Aimbot initialised with settings: %s", self.settings)
 
@@ -94,7 +99,7 @@ class Aimbot:
         if hero.name == "GreyTalon" and self.settings.grey_talon_lock_enabled and self.settings.grey_talon_lock > 0:
             if win32api.GetKeyState(self.settings.grey_talon_key) < 0:
                 self.force_aim_until = max(self.force_aim_until, now + self.settings.grey_talon_lock)
-                logger.debug("Grey Talon ability lock triggered; holding until %.2f", self.force_aim_until)
+                logger.debug("Grey Talon ability lock triggered; holding until %.2f", self.force_aim_until)        
         elif hero.name == "Yamato" and self.settings.yamato_lock_enabled and self.settings.yamato_lock > 0:
             if win32api.GetKeyState(self.settings.yamato_key) < 0:
                 self.force_aim_until = max(self.force_aim_until, now + self.settings.yamato_lock)
@@ -105,9 +110,18 @@ class Aimbot:
                 logger.debug("Vindicta ability lock triggered; holding until %.2f", self.force_aim_until)
 
     def should_aim_for_head(self) -> bool:
-        """Return ``True`` if the bot should attempt a headshot."""
-
-        return random.random() < self.settings.headshot_probability
+        """Return ``True`` if the bot should attempt a headshot.
+        
+        Caches the random decision for 0.4 seconds to avoid frequent changes.
+        """
+        current_time = time.time()
+        
+        # Check if we need to update the cached decision
+        if current_time - self._headshot_cache_time >= self._headshot_cache_interval:
+            self._headshot_cache = random.random() < self.settings.headshot_probability
+            self._headshot_cache_time = current_time
+        
+        return self._headshot_cache
 
     def run(self) -> None:
         """Main aimbot loop."""

@@ -57,6 +57,16 @@ mouse button. If you want to shoot without the aimbot—for example at troopers,
 towers or souls—hold the right mouse button instead and make sure to remap the
 alternate fire key in Deadlock's settings so it doesn't conflict.
 
+#### Headshot targeting
+
+The aimbot can aim for either the head or center mass of targets based on the
+`headshot_probability` setting (default 25%). To make targeting behavior more
+consistent and human-like, the aimbot caches its headshot decision for 0.4
+seconds at a time. This means that once the aimbot decides whether to aim for
+the head or body, it will maintain that targeting preference for the next 0.4
+seconds before making a new random decision. This prevents rapid switching
+between head and body targeting that could appear unnatural.
+
 #### Hero ability lock
 
 When playing **Grey Talon** or **Yamato**, pressing **Q** (ability 1) keeps the
