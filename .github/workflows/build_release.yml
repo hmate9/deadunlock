@@ -24,7 +24,7 @@ jobs:
 
       - name: Build executable
         run: |
-          pyinstaller --onefile deadlock/aimbot_gui.py
+          pyinstaller --onefile --name aimbot_gui launcher.py
 
       - name: Get tag name
         id: vars
