@@ -29,11 +29,17 @@ def _remote_commit() -> Optional[str]:
     return None
 
 
-def ensure_up_to_date() -> None:
-    """Pull the latest changes if the local repo is outdated and exit."""
+def update_available() -> bool:
+    """Return ``True`` if a newer commit is available on GitHub."""
+
     local = _local_commit()
     remote = _remote_commit()
-    if local and remote and local != remote:
+    return bool(local and remote and local != remote)
+
+
+def ensure_up_to_date() -> None:
+    """Pull the latest changes if the local repo is outdated and exit."""
+    if update_available():
         print("Your DeadUnlock copy is out of date. Pulling updates...")
         root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         try:
