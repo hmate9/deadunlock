@@ -142,7 +142,7 @@ pip install pyinstaller
 Then create the executable with:
 
 ```bash
-pyinstaller --onefile deadlock/aimbot_gui.py
+pyinstaller aimbot_gui.spec
 ```
 
 The resulting `.exe` will be placed in the `dist` folder and can be run on

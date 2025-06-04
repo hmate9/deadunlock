@@ -1,10 +1,19 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from pathlib import Path
+
+project_root = Path(__file__).resolve().parent
+icon_file = project_root / 'img' / 'deadunlock_icon.ico'
+
 a = Analysis(
     ['launcher.py'],
     pathex=[],
     binaries=[],
-    datas=[('version.txt', '.'), ('img/deadunlock_icon.png', 'img'), ('img/deadunlock_icon.ico', 'img')],
+    datas=[
+        ('version.txt', '.'),
+        ('img/deadunlock_icon.png', 'img'),
+        (str(icon_file), 'img'),
+    ],
     hiddenimports=[
         'numpy',
         'numpy.core',
@@ -64,5 +73,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='img/deadunlock_icon.ico',
+    icon=str(icon_file),
 )
