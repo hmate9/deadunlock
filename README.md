@@ -42,6 +42,13 @@ Launch Deadlock first and then start the aimbot with:
 python -m deadlock.aimbot
 ```
 
+Pass ``--debug`` to print detailed log messages which can help when
+troubleshooting:
+
+```bash
+python -m deadlock.aimbot --debug
+```
+
 The script connects to the game's process and continually adjusts your camera
 towards enemy targets.
 
@@ -69,6 +76,12 @@ To render a simple ESP overlay showing player skeletons, run:
 
 ```bash
 python -m deadlock.esp
+```
+
+To get verbose output while the overlay runs, add ``--debug``:
+
+```bash
+python -m deadlock.esp --debug
 ```
 
 This spawns a transparent Pygame window that follows the game and updates in

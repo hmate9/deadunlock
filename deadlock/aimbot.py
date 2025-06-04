@@ -15,6 +15,7 @@ from dataclasses import dataclass
 import random
 import time
 import logging
+import argparse
 
 import win32api
 
@@ -208,9 +209,26 @@ class Aimbot:
             time.sleep(0.001)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    """Run the aimbot entry point.
+
+    Parameters
+    ----------
+    argv:
+        Optional command line arguments.  Providing ``--debug`` enables
+        verbose output.
+    """
+
+    parser = argparse.ArgumentParser(description="Deadlock aimbot")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="enable debug logging",
+    )
+    args = parser.parse_args(argv)
+
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG if args.debug else logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
     ensure_up_to_date()
