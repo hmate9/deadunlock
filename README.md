@@ -57,6 +57,13 @@ python -m deadlock.aimbot
 The script connects to the game's process and continually adjusts your camera
 towards enemy targets.
 
+#### Hero ability lock
+
+When playing **Grey Talon** or **Yamato**, pressing **Q** (ability 1) keeps the
+aimbot locked on your target for a short duration. Using **Vindicta's** **R**
+(ability 4) triggers the same lock. These timeouts can be changed through
+``AimbotSettings`` (`grey_talon_lock`, `yamato_lock`, and `vindicta_lock`).
+
 ### ESP Overlay
 
 To render a simple ESP overlay showing player skeletons, run:
