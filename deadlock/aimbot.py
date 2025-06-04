@@ -21,6 +21,7 @@ try:
     from .heroes import get_body_bone_index, get_head_bone_index
     from .helpers import calculate_camera_rotation, calculate_new_camera_angles
     from .memory import DeadlockMemory
+    from .update_checker import ensure_up_to_date
 except ImportError:
     # Fallback for when running directly
     from heroes import get_body_bone_index, get_head_bone_index
@@ -139,6 +140,7 @@ class Aimbot:
 
 
 def main() -> None:
+    ensure_up_to_date()
     mem = DeadlockMemory()
     bot = Aimbot(mem)
     bot.run()
