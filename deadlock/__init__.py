@@ -1,4 +1,4 @@
-"""DeadUnlock helper package."""
+"""Helper package exposing a minimal Deadlock API."""
 
 from .memory import DeadlockMemory
 from .aimbot import Aimbot, AimbotSettings

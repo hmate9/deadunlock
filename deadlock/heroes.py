@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""Hero enumeration and helper lookups."""
+
 from enum import Enum
 
 

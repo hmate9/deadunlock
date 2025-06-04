@@ -1,34 +1,59 @@
 from __future__ import annotations
 
+"""Aimbot implementation used by :mod:`deadlock`.
+
+The logic here aims to be straightforward and easy to maintain.  The
+``Aimbot`` class exposes a ``run`` loop that continuously reads game
+memory via :class:`deadlock.memory.DeadlockMemory` and adjusts the
+player camera toward enemy targets.
+
+This module is intentionally platform specific (Windows only) as it
+relies on ``win32api`` to query mouse button state.
+"""
+
+from dataclasses import dataclass
 import random
 import time
-from dataclasses import dataclass
 
 import win32api
 
 from .heroes import get_body_bone_index, get_head_bone_index
-from .helpers import calculate_camera_rotation
+from .helpers import calculate_camera_rotation, calculate_new_camera_angles
 from .memory import DeadlockMemory
 
 
 @dataclass
 class AimbotSettings:
+    """Configuration for :class:`Aimbot`."""
+
     headshot_probability: float = 0.25
-    aim_assist_probability: float = 0.8
+    #: chance to aim at the enemy's head instead of centre mass
+
     target_select_type: str = "fov"  # "distance" or "fov"
-    max_angle_change: float = 5.0
+    #: prioritisation strategy when selecting targets
+
+    smooth_speed: float = 5.0
+    #: maximum angle change (degrees) per frame when locking on
 
 
 class Aimbot:
+    """Basic aimbot controller."""
+
     def __init__(self, mem: DeadlockMemory, settings: AimbotSettings | None = None) -> None:
+        """Create a new aimbot bound to ``mem``."""
+
         self.mem = mem
         self.settings = settings or AimbotSettings()
         self.locked_on: int | None = None
 
     def should_aim_for_head(self) -> bool:
+        """Return ``True`` if the bot should attempt a headshot."""
+
         return random.random() < self.settings.headshot_probability
 
     def run(self) -> None:
+        """Main aimbot loop."""
+
         while True:
             cam_pos = self.mem.camera_position()
             current_yaw, current_pitch = self.mem.current_angles()
@@ -88,8 +113,17 @@ class Aimbot:
             else:
                 target_pos = target["position"]
 
+            # Gradually rotate the camera towards the desired angles for a
+            # slightly more human-like movement.
             yaw, pitch = calculate_camera_rotation(cam_pos, target_pos)
-            self.mem.set_angles(yaw, -pitch)
+            new_yaw, new_pitch = calculate_new_camera_angles(
+                current_yaw,
+                current_pitch,
+                yaw,
+                -pitch,
+                self.settings.smooth_speed,
+            )
+            self.mem.set_angles(new_yaw, new_pitch)
             time.sleep(0.001)
 
 

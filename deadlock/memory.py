@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import ctypes
+"""Thin wrapper over :mod:`pymem` for reading Deadlock game memory."""
+
 from dataclasses import dataclass
 from typing import Dict, Tuple
 
@@ -24,6 +25,8 @@ class DeadlockMemory:
     """Small wrapper around ``pymem`` with dynamic offsets."""
 
     def __init__(self, process: str = "deadlock.exe") -> None:
+        """Open the game process and locate dynamic offsets."""
+
         self.process_name = process
         self.pm = pymem.Pymem(process)
         self.client_base = pymem.process.module_from_name(
@@ -32,6 +35,8 @@ class DeadlockMemory:
         self.offsets = self._read_offsets()
 
     def _read_offsets(self) -> Offsets:
+        """Read offsets via :mod:`offset_finder`."""
+
         offs = offset_finder.find_offsets(self.process_name)
         return Offsets(**offs)
 
@@ -82,6 +87,8 @@ class DeadlockMemory:
         self.write_float(cam + 0x4C, 0.0)
 
     def get_entity_base(self, index: int) -> Tuple[int, int]:
+        """Return controller and pawn addresses for entity ``index``."""
+
         entity_list = self.entity_list
         address_base = self.read_longlong(entity_list + 0x8 * ((index & 0x7FFF) >> 0x9) + 0x10)
         controller_base = self.read_longlong(address_base + 120 * (index & 0x1FF))
@@ -93,6 +100,8 @@ class DeadlockMemory:
         return controller_base, pawn
 
     def read_entity(self, index: int) -> Dict:
+        """Return a dict describing the entity at ``index``."""
+
         controller_base, pawn = self.get_entity_base(index)
         hero_id = HeroIds(self.read_int(controller_base + 0x8B8 + 0x1C))
         game_scene_node = self.read_longlong(pawn + 0x330)

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""Simplistic ESP (Extra Sensory Perception) overlay using pygame."""
+
 import ctypes
 import time
 
@@ -11,7 +13,11 @@ from .memory import DeadlockMemory
 
 
 class ESP:
+    """Tiny pygame-based overlay rendering player skeletons."""
+
     def __init__(self, mem: DeadlockMemory) -> None:
+        """Create an overlay bound to ``mem``."""
+
         self.mem = mem
         pygame.init()
         info = pygame.display.Info()
@@ -24,6 +30,8 @@ class ESP:
         ctypes.windll.user32.SetLayeredWindowAttributes(hwnd, 0, 255, 1)
 
     def draw_skeleton(self, bones, color=(255, 0, 0)) -> None:
+        """Draw a list of bone pairs to the screen."""
+
         for start, end in bones:
             start_pos = world_to_screen(self.view_matrix, start, self.width, self.height)
             end_pos = world_to_screen(self.view_matrix, end, self.width, self.height)
@@ -43,6 +51,8 @@ class ESP:
         self.view_matrix = np.frombuffer(raw, dtype=np.float32).reshape(4, 4)
 
     def run(self) -> None:
+        """Main overlay loop."""
+
         running = True
         while running:
             self.screen.fill((0, 0, 0, 0))

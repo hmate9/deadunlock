@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""Helper math utilities used by :mod:`deadlock`."""
+
 import math
 from typing import Iterable, Optional, Sequence, Tuple
 
