@@ -50,7 +50,18 @@ towards enemy targets.
 When playing **Grey Talon** or **Yamato**, pressing **Q** (ability 1) keeps the
 aimbot locked on your target for a short duration. Using **Vindicta's** **R**
 (ability 4) triggers the same lock. These timeouts can be changed through
-``AimbotSettings`` (`grey_talon_lock`, `yamato_lock`, and `vindicta_lock`).
+``AimbotSettings`` (`grey_talon_lock`, `yamato_lock`, and `vindicta_lock`). The
+hotkeys can also be configured (`grey_talon_key`, `yamato_key`, and
+`vindicta_key`) or toggled completely using the GUI.
+
+A small Tkinter GUI is available as well:
+
+```bash
+python -m deadlock.aimbot_gui
+```
+
+It lets you tweak the aimbot settings, enable or disable the hero ability
+locks and change the keys used to trigger them.
 
 ### ESP Overlay
 

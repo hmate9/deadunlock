@@ -45,11 +45,29 @@ class AimbotSettings:
     grey_talon_lock: float = 0.5
     #: seconds to keep aiming after Grey Talon's ability 1 (``Q``)
 
+    grey_talon_lock_enabled: bool = True
+    #: if ``True`` check for Grey Talon's ability 1 key
+
+    grey_talon_key: int = ord("Q")
+    #: virtual-key code for Grey Talon's lock trigger
+
     yamato_lock: float = 1.5
     #: seconds to keep aiming after Yamato's ability 1 (``Q``)
 
+    yamato_lock_enabled: bool = True
+    #: if ``True`` check for Yamato's ability 1 key
+
+    yamato_key: int = ord("Q")
+    #: virtual-key code for Yamato's lock trigger
+
     vindicta_lock: float = 0.65
     #: seconds to keep aiming after Vindicta's ability 4 (``R``)
+
+    vindicta_lock_enabled: bool = True
+    #: if ``True`` check for Vindicta's ability 4 key
+
+    vindicta_key: int = ord("R")
+    #: virtual-key code for Vindicta's lock trigger
 
 
 class Aimbot:
@@ -66,14 +84,14 @@ class Aimbot:
     def _update_ability_lock(self, hero) -> None:
         """Extend ``force_aim_until`` when ability keys are pressed."""
         now = time.time()
-        if hero.name == "GreyTalon" and self.settings.grey_talon_lock > 0:
-            if win32api.GetKeyState(0x51) < 0:  # Q
+        if hero.name == "GreyTalon" and self.settings.grey_talon_lock_enabled and self.settings.grey_talon_lock > 0:
+            if win32api.GetKeyState(self.settings.grey_talon_key) < 0:
                 self.force_aim_until = max(self.force_aim_until, now + self.settings.grey_talon_lock)
-        elif hero.name == "Yamato" and self.settings.yamato_lock > 0:
-            if win32api.GetKeyState(0x51) < 0:  # Q
+        elif hero.name == "Yamato" and self.settings.yamato_lock_enabled and self.settings.yamato_lock > 0:
+            if win32api.GetKeyState(self.settings.yamato_key) < 0:
                 self.force_aim_until = max(self.force_aim_until, now + self.settings.yamato_lock)
-        elif hero.name == "Vindicta" and self.settings.vindicta_lock > 0:
-            if win32api.GetKeyState(0x52) < 0:  # R
+        elif hero.name == "Vindicta" and self.settings.vindicta_lock_enabled and self.settings.vindicta_lock > 0:
+            if win32api.GetKeyState(self.settings.vindicta_key) < 0:
                 self.force_aim_until = max(self.force_aim_until, now + self.settings.vindicta_lock)
 
     def should_aim_for_head(self) -> bool:
