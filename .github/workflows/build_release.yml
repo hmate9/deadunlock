@@ -1,0 +1,38 @@
+name: Build GUI and create release
+
+on:
+  push:
+    branches: ["**"]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build executable
+        run: |
+          pyinstaller --onefile deadlock/aimbot_gui.py
+
+      - name: Get tag name
+        id: vars
+        run: echo "tag=build-${{ github.sha }}" >> $env:GITHUB_OUTPUT
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: ${{ steps.vars.outputs.tag }}
+          files: dist/aimbot_gui.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_API_TOKEN }}
