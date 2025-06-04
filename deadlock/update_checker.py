@@ -30,10 +30,19 @@ def _remote_commit() -> Optional[str]:
 
 
 def ensure_up_to_date() -> None:
-    """Exit the program if the local repo is outdated."""
+    """Pull the latest changes if the local repo is outdated and exit."""
     local = _local_commit()
     remote = _remote_commit()
     if local and remote and local != remote:
-        print("Your DeadUnlock copy is out of date. Please run 'git pull' to update.")
+        print("Your DeadUnlock copy is out of date. Pulling updates...")
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        try:
+            subprocess.check_call(["git", "pull"], cwd=root)
+        except Exception as exc:
+            print(f"Failed to update automatically: {exc}")
+            print("Please run 'git pull' manually.")
+            input("Press Enter to exit...")
+            sys.exit(1)
+        print("Update complete. Please restart the program.")
         input("Press Enter to exit...")
-        sys.exit(1)
+        sys.exit(0)
