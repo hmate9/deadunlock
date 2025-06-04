@@ -7,11 +7,11 @@ import os
 import threading
 import tkinter as tk
 from dataclasses import asdict
-from tkinter import ttk
+from tkinter import messagebox, ttk
 
 from .aimbot import Aimbot, AimbotSettings
 from .memory import DeadlockMemory
-from .update_checker import ensure_up_to_date
+from .update_checker import ensure_up_to_date, update_available
 
 SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "aimbot_settings.json")
 
@@ -44,6 +44,16 @@ class AimbotApp:
 
         self._build_widgets()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+        self._notify_if_outdated()
+
+    def _notify_if_outdated(self) -> None:
+        """Show a warning dialog if the local repo is outdated."""
+        if update_available():
+            messagebox.showwarning(
+                "Update available",
+                "A newer DeadUnlock version is available. Please run 'git pull'.",
+            )
 
     def _build_widgets(self) -> None:
         frm = ttk.Frame(self.root, padding=10)
