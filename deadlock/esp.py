@@ -85,7 +85,7 @@ class ESP:
                     continue
                 bone_array = self.mem.read_longlong(data["node"] + 0x170 + 0x80)
                 bones = []
-                for b in range(0, 15):
+                for b in range(0, 64):
                     start = (
                         self.mem.read_float(bone_array + b * 32),
                         self.mem.read_float(bone_array + b * 32 + 4),
