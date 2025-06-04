@@ -261,11 +261,6 @@ class AimbotApp:
         ttk.Entry(hero_frame, textvariable=self.vindicta_key, width=3).grid(row=hero_row, column=1, sticky="w")
         hero_row += 1
 
-        ttk.Label(
-            hero_frame,
-            text="Defaults - Grey Talon: Q, Yamato: Q, Vindicta: R",
-            font=("TkDefaultFont", 8),
-        ).grid(row=hero_row, column=0, columnspan=2, sticky="w", pady=(2, 0))
         row += 1
 
         # Control buttons
