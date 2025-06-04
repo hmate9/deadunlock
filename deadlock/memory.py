@@ -80,10 +80,10 @@ class DeadlockMemory:
         cam = self.camera
         return self.read_float(cam + 0x48), self.read_float(cam + 0x44)
 
-    def set_angles(self, yaw: float, pitch: float) -> None:
+    def set_angles(self, yaw: float, pitch: float, aim_angle: float = 0.0) -> None:
         cam = self.camera
         self.write_float(cam + 0x48, yaw)
-        self.write_float(cam + 0x44, pitch)
+        self.write_float(cam + 0x44, pitch - aim_angle)  # Subtract aim_angle for recoil compensation
         self.write_float(cam + 0x4C, 0.0)
 
     def get_entity_base(self, index: int) -> Tuple[int, int]:
@@ -113,6 +113,16 @@ class DeadlockMemory:
         )
         team = self.read_int(controller_base + 0x3F3)
         health = self.read_int(pawn + 0x354)
+        
+        # Get aim angle for local player (index 0) - for recoil compensation
+        aim_angle = 0.0
+        if index == 0:
+            try:
+                camera_services = self.read_longlong(pawn + 0xf80)  # C_BasePlayerPawn + CPlayer_CameraServices
+                aim_angle = self.read_float(camera_services + 0x40)  # m_vecPunchAngle
+            except:
+                aim_angle = 0.0
+        
         return {
             "controller": controller_base,
             "pawn": pawn,
@@ -121,4 +131,5 @@ class DeadlockMemory:
             "position": pos,
             "node": game_scene_node,
             "hero": hero_id,
+            "aim_angle": aim_angle,
         }

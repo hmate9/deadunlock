@@ -155,6 +155,7 @@ class Aimbot:
                 
             my_data = self.mem.read_entity(0)
             self._update_ability_lock(my_data["hero"])
+            my_aim_angle = my_data["aim_angle"]
 
             if not hold_down_left_click and win32api.GetKeyState(0x02) < 0:
                 hold_down_left_click = True
@@ -255,7 +256,7 @@ class Aimbot:
                 -pitch,
                 self.settings.smooth_speed,
             )
-            self.mem.set_angles(new_yaw, new_pitch)
+            self.mem.set_angles(new_yaw, new_pitch, my_aim_angle)
             time.sleep(0.001)
             
         logger.info("Aimbot loop ended")
