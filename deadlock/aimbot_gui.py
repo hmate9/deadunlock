@@ -14,7 +14,7 @@ from tkinter import messagebox, scrolledtext, ttk
 
 from .aimbot import Aimbot, AimbotSettings
 from .memory import DeadlockMemory
-from .update_checker import ensure_up_to_date, update_available
+from .update_checker import ensure_up_to_date, update_available, _get_current_version
 
 SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "aimbot_settings.json")
 
@@ -36,6 +36,17 @@ def save_settings(settings: AimbotSettings) -> None:
             json.dump(asdict(settings), fh, indent=2)
     except Exception as exc:
         print(f"Failed to save settings: {exc}")
+
+
+def _get_build_sha() -> str:
+    """Return the short commit SHA for the current build."""
+    try:
+        sha = _get_current_version()
+        if sha:
+            return sha[:7]
+    except Exception:
+        pass
+    return "unknown"
 
 
 class GUILogHandler(logging.Handler):
@@ -229,9 +240,14 @@ class AimbotApp:
         
         self.log_text = scrolledtext.ScrolledText(log_frame, width=50, height=20, state='disabled')
         self.log_text.pack(fill="both", expand=True)
-        
+
         # Clear log button
         ttk.Button(log_frame, text="Clear Log", command=self.clear_log).pack(pady=(5, 0))
+
+        # Build SHA label (small, bottom-right)
+        sha = _get_build_sha()
+        self.build_label = ttk.Label(main_frame, text=f"build {sha}", font=("TkDefaultFont", 8))
+        self.build_label.grid(row=2, column=1, sticky="e", padx=(0, 2), pady=(2, 0))
 
     def _process_log_queue(self) -> None:
         """Process log messages from queue and display them in the log text widget."""
