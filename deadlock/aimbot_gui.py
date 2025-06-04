@@ -2,23 +2,48 @@ from __future__ import annotations
 
 """Simple Tkinter GUI for configuring and running the aimbot."""
 
+import json
+import os
 import threading
 import tkinter as tk
+from dataclasses import asdict
 from tkinter import ttk
 
 from .aimbot import Aimbot, AimbotSettings
 from .memory import DeadlockMemory
 from .update_checker import ensure_up_to_date
 
+SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "aimbot_settings.json")
+
+
+def load_saved_settings() -> AimbotSettings:
+    """Return stored :class:`AimbotSettings` or defaults."""
+    try:
+        with open(SETTINGS_FILE, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return AimbotSettings(**data)
+    except Exception:
+        return AimbotSettings()
+
+
+def save_settings(settings: AimbotSettings) -> None:
+    """Persist ``settings`` to :data:`SETTINGS_FILE`."""
+    try:
+        with open(SETTINGS_FILE, "w", encoding="utf-8") as fh:
+            json.dump(asdict(settings), fh, indent=2)
+    except Exception as exc:
+        print(f"Failed to save settings: {exc}")
+
 
 class AimbotApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("DeadUnlock Aimbot")
-        self.settings = AimbotSettings()
+        self.settings = load_saved_settings()
         self.bot: Aimbot | None = None
 
         self._build_widgets()
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def _build_widgets(self) -> None:
         frm = ttk.Frame(self.root, padding=10)
@@ -63,7 +88,8 @@ class AimbotApp:
 
         ttk.Button(frm, text="Start", command=self.start).grid(row=row, column=0, columnspan=2, pady=5)
 
-    def start(self) -> None:
+    def _apply_widget_values(self) -> None:
+        """Update :attr:`settings` from widget values."""
         self.settings.headshot_probability = float(self.headshot_var.get())
         self.settings.target_select_type = self.target_var.get()
         self.settings.smooth_speed = float(self.smooth_var.get())
@@ -80,10 +106,19 @@ class AimbotApp:
         if self.vindicta_key.get():
             self.settings.vindicta_key = ord(self.vindicta_key.get().upper()[0])
 
+    def start(self) -> None:
+        self._apply_widget_values()
+        save_settings(self.settings)
+
         ensure_up_to_date()
         mem = DeadlockMemory()
         self.bot = Aimbot(mem, self.settings)
         threading.Thread(target=self.bot.run, daemon=True).start()
+
+    def on_close(self) -> None:
+        self._apply_widget_values()
+        save_settings(self.settings)
+        self.root.destroy()
 
 
 def main() -> None:
