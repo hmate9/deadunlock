@@ -32,3 +32,35 @@ If Valve updates Deadlock and the underlying code changes, these patterns may no
 Outdated signatures will result in missing or incorrect offsets, causing other tools in this
 repository to malfunction. When that happens, the signatures need to be updated by scanning the
 new game binaries for the correct patterns.
+
+## Running the Tools
+
+### Installation
+
+The project requires Python 3.10+ on Windows. Install the dependencies with:
+
+```bash
+pip install -r requirements.txt
+```
+
+### Aimbot
+
+Launch Deadlock first and then start the aimbot with:
+
+```bash
+python -m deadlock.aimbot
+```
+
+The script connects to the game's process and continually adjusts your camera
+towards enemy targets.
+
+### ESP Overlay
+
+To render a simple ESP overlay showing player skeletons, run:
+
+```bash
+python -m deadlock.esp
+```
+
+This spawns a transparent Pygame window that follows the game and updates in
+real time.
