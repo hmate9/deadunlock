@@ -304,7 +304,7 @@ class AimbotApp:
                     "A newer DeadUnlock version is available. Please run 'git pull'.",
                 )
 
-    def _perform_update_with_progress(self):
+    def _perform_update_with_progress(self, force: bool = False):
         """Perform update with detailed progress dialog."""
         progress_dialog = UpdateProgressDialog(self.root)
         
@@ -344,7 +344,7 @@ class AimbotApp:
                                 pass
                 
                 # Start the actual update process
-                ensure_up_to_date(progress_callback)
+                ensure_up_to_date(progress_callback, force=force)
             except SystemExit:
                 # Expected when update completes successfully
                 pass
@@ -396,7 +396,7 @@ class AimbotApp:
                 "This will restart the application and show detailed progress.",
             )
             if result:
-                self._perform_update_with_progress()
+                self._perform_update_with_progress(force=True)
         except Exception as exc:
             messagebox.showerror("Force Update Failed", f"Failed to update: {exc}")
 

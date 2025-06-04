@@ -295,12 +295,15 @@ def _pause(msg: str = "Press Enter to continue...") -> None:
             pass
 
 
-def ensure_up_to_date(progress_callback: Optional[Callable[[str], None]] = None) -> None:
+def ensure_up_to_date(progress_callback: Optional[Callable[[str], None]] = None, force: bool = False) -> None:
     """Update to the latest version if outdated and exit."""
     if progress_callback:
-        progress_callback("Checking if update is needed...")
+        if force:
+            progress_callback("Force update requested - downloading latest version...")
+        else:
+            progress_callback("Checking if update is needed...")
         
-    if not update_available():
+    if not force and not update_available():
         if progress_callback:
             progress_callback("No update needed - you're running the latest version")
         return
@@ -335,6 +338,8 @@ def ensure_up_to_date(progress_callback: Optional[Callable[[str], None]] = None)
         if progress_callback:
             release_name = latest_release.get("name", "Unknown")
             progress_callback(f"Found release: {release_name}")
+            if force:
+                progress_callback("Force update mode: will download and install regardless of current version")
             progress_callback("Analyzing release assets...")
         
         # Find the executable asset
@@ -383,6 +388,19 @@ def ensure_up_to_date(progress_callback: Optional[Callable[[str], None]] = None)
         if progress_callback:
             progress_callback(f"Current executable: {current_exe_path}")
             
+            # Show version comparison for force updates
+            if force:
+                current_version = _get_current_version()
+                tag_name = latest_release.get("tag_name", "")
+                if tag_name.startswith("build-"):
+                    latest_commit = tag_name[6:]  # Remove "build-" prefix
+                    if current_version and current_version == latest_commit:
+                        progress_callback("Note: You already have the latest version, but proceeding with forced update")
+                    elif current_version:
+                        progress_callback(f"Force updating from {current_version[:7]} to {latest_commit[:7]}")
+                    else:
+                        progress_callback("Force updating to latest version (current version unknown)")
+                        
         # Download and replace
         if _download_and_replace_executable(download_url, current_exe_path, progress_callback):
             if progress_callback:
