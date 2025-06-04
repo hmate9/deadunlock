@@ -69,6 +69,8 @@ class AimbotApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("DeadUnlock Aimbot")
+        self.root.geometry("750x520")
+        self.root.minsize(620, 480)
         
         # Set window icon
         try:
@@ -166,10 +168,20 @@ class AimbotApp:
             )
 
     def _build_widgets(self) -> None:
+        # apply a slightly more modern theme if available
+        style = ttk.Style(self.root)
+        if "clam" in style.theme_names():
+            style.theme_use("clam")
+        default_font = ("Segoe UI", 10)
+        self.root.option_add("*Font", default_font)
+        style.configure("TButton", padding=6)
+        style.configure("TLabel", padding=(2, 2))
+        style.configure("TCheckbutton", padding=(2, 2))
+
         # Create menu bar
         menubar = tk.Menu(self.root)
         self.root.config(menu=menubar)
-        
+
         # Help menu
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Help", menu=help_menu)
@@ -201,25 +213,29 @@ class AimbotApp:
         ttk.Entry(settings_frame, textvariable=self.smooth_var, width=5).grid(row=row, column=1, sticky="w")
         row += 1
 
-        # Grey Talon
+        # Hero ability locks
+        hero_frame = ttk.LabelFrame(settings_frame, text="Hero Ability Locks", padding=5)
+        hero_frame.grid(row=row, column=0, columnspan=2, sticky="ew", pady=(5, 0))
+        hero_row = 0
+
         self.grey_enabled = tk.BooleanVar(value=self.settings.grey_talon_lock_enabled)
-        ttk.Checkbutton(settings_frame, text="Grey Talon lock", variable=self.grey_enabled).grid(row=row, column=0, sticky="w")
+        ttk.Checkbutton(hero_frame, text="Grey Talon", variable=self.grey_enabled).grid(row=hero_row, column=0, sticky="w")
         self.grey_key = tk.StringVar(value=chr(self.settings.grey_talon_key))
-        ttk.Entry(settings_frame, textvariable=self.grey_key, width=3).grid(row=row, column=1, sticky="w")
-        row += 1
+        ttk.Entry(hero_frame, textvariable=self.grey_key, width=3).grid(row=hero_row, column=1, sticky="w")
+        hero_row += 1
 
-        # Yamato
         self.yamato_enabled = tk.BooleanVar(value=self.settings.yamato_lock_enabled)
-        ttk.Checkbutton(settings_frame, text="Yamato lock", variable=self.yamato_enabled).grid(row=row, column=0, sticky="w")
+        ttk.Checkbutton(hero_frame, text="Yamato", variable=self.yamato_enabled).grid(row=hero_row, column=0, sticky="w")
         self.yamato_key = tk.StringVar(value=chr(self.settings.yamato_key))
-        ttk.Entry(settings_frame, textvariable=self.yamato_key, width=3).grid(row=row, column=1, sticky="w")
-        row += 1
+        ttk.Entry(hero_frame, textvariable=self.yamato_key, width=3).grid(row=hero_row, column=1, sticky="w")
+        hero_row += 1
 
-        # Vindicta
         self.vindicta_enabled = tk.BooleanVar(value=self.settings.vindicta_lock_enabled)
-        ttk.Checkbutton(settings_frame, text="Vindicta lock", variable=self.vindicta_enabled).grid(row=row, column=0, sticky="w")
+        ttk.Checkbutton(hero_frame, text="Vindicta", variable=self.vindicta_enabled).grid(row=hero_row, column=0, sticky="w")
         self.vindicta_key = tk.StringVar(value=chr(self.settings.vindicta_key))
-        ttk.Entry(settings_frame, textvariable=self.vindicta_key, width=3).grid(row=row, column=1, sticky="w")
+        ttk.Entry(hero_frame, textvariable=self.vindicta_key, width=3).grid(row=hero_row, column=1, sticky="w")
+        hero_row += 1
+
         row += 1
 
         # Control buttons
@@ -248,7 +264,8 @@ class AimbotApp:
         main_frame.columnconfigure(1, weight=1)
         main_frame.rowconfigure(0, weight=1)
         
-        self.log_text = scrolledtext.ScrolledText(log_frame, width=50, height=20, state='disabled')
+        self.log_text = scrolledtext.ScrolledText(log_frame, width=50, height=20, state="disabled")
+        self.log_text.configure(background="#1e1e1e", foreground="#dcdcdc", insertbackground="#ffffff")
         self.log_text.pack(fill="both", expand=True)
 
         # Clear log button
