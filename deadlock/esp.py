@@ -5,6 +5,7 @@ from __future__ import annotations
 import ctypes
 import time
 import logging
+import argparse
 
 import numpy as np
 import pygame
@@ -103,9 +104,26 @@ class ESP:
         logger.info("ESP loop stopped")
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    """Run the ESP overlay entry point.
+
+    Parameters
+    ----------
+    argv:
+        Optional command line arguments.  Providing ``--debug`` enables
+        verbose logging output.
+    """
+
+    parser = argparse.ArgumentParser(description="Deadlock ESP overlay")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="enable debug logging",
+    )
+    args = parser.parse_args(argv)
+
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG if args.debug else logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
     ensure_up_to_date()
