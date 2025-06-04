@@ -98,7 +98,5 @@ jobs:
           name: ${{ steps.vars.outputs.tag }}
           files: |
             dist/aimbot_gui.exe
-            img/deadunlock_icon.png
-            img/deadunlock_icon.ico
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN  }}
