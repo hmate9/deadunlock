@@ -10,6 +10,8 @@ from typing import Dict, Optional
 
 import psutil
 
+from signature_patterns import SIGNATURES as SIGNATURE_PATTERNS
+
 # Define Windows API constants
 PROCESS_QUERY_INFORMATION = 0x0400
 PROCESS_VM_READ = 0x0010
@@ -132,15 +134,8 @@ def read_process_memory(handle: wintypes.HANDLE, address: int, size: int) -> byt
 def find_offsets(process_name: str) -> Dict[str, int]:
     """Scan ``process_name`` for known signatures and return their offsets."""
     sigs = {
-        "local_player_controller": Signature("48 8B 1D ? ? ? ? 48 8B 6C 24", 3, 7),
-        "view_matrix": Signature("48 8D ? ? ? ? ? 48 C1 E0 06 48 03 C1 C3", 3, 7),
-        "entity_list": Signature("48 8B 0D ? ? ? ? C7 45 0F C8 00 00 00", 3, 7),
-        "camera_manager": Signature("48 8D 3D ? ? ? ? 8B D9", 3, 7),
-        "schema_system_interface": Signature(
-            "48 89 05 ? ? ? ? 4C 8D 0D ? ? ? ? 0F B6 45 E8 4C 8D 45 E0 33 F6",
-            3,
-            7,
-        ),
+        name: Signature(pattern, offset, extra)
+        for name, (pattern, offset, extra) in SIGNATURE_PATTERNS.items()
     }
 
     handle = get_process_handle(process_name)
