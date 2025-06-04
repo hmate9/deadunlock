@@ -213,10 +213,13 @@ class AimbotApp:
         ttk.Entry(settings_frame, textvariable=self.smooth_var, width=5).grid(row=row, column=1, sticky="w")
         row += 1
 
-        # Hero ability locks
+        # Hero ability lock keybinds
         hero_frame = ttk.LabelFrame(settings_frame, text="Hero Ability Locks", padding=5)
         hero_frame.grid(row=row, column=0, columnspan=2, sticky="ew", pady=(5, 0))
         hero_row = 0
+        ttk.Label(hero_frame, text="Hero").grid(row=hero_row, column=0, sticky="w")
+        ttk.Label(hero_frame, text="Keybind").grid(row=hero_row, column=1, sticky="w")
+        hero_row += 1
 
         self.grey_enabled = tk.BooleanVar(value=self.settings.grey_talon_lock_enabled)
         ttk.Checkbutton(hero_frame, text="Grey Talon", variable=self.grey_enabled).grid(row=hero_row, column=0, sticky="w")
@@ -236,6 +239,11 @@ class AimbotApp:
         ttk.Entry(hero_frame, textvariable=self.vindicta_key, width=3).grid(row=hero_row, column=1, sticky="w")
         hero_row += 1
 
+        ttk.Label(
+            hero_frame,
+            text="Defaults - Grey Talon: Q, Yamato: Q, Vindicta: R",
+            font=("TkDefaultFont", 8),
+        ).grid(row=hero_row, column=0, columnspan=2, sticky="w", pady=(2, 0))
         row += 1
 
         # Control buttons
