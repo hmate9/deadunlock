@@ -80,6 +80,9 @@ def _download_and_replace_executable(download_url: str, current_exe_path: str, p
             progress_callback("Initializing download...")
         print("Downloading update...")
 
+        # Clean up old update files from previous attempts
+        _cleanup_old_update_files(current_exe_path, progress_callback)
+
         # Check for cancellation
         if cancel_check and cancel_check():
             if progress_callback:
@@ -184,41 +187,186 @@ def _download_and_replace_executable(download_url: str, current_exe_path: str, p
 
         # Write helper script that waits for the current process to exit,
         # replaces the executable and launches the new one
-        helper_code = f"""
+        helper_code = f'''
 import os
 import shutil
 import subprocess
 import sys
 import time
+import psutil
 
 OLD = r"{current_exe_path}"
 NEW = r"{temp_path}"
+BACKUP = r"{backup_path}"
+CURRENT_PID = {os.getpid()}
 
-# Wait for current process to exit (up to 30 seconds)
-for i in range(30):
+def is_process_running(pid):
+    """Check if a process with given PID is still running."""
     try:
-        os.remove(OLD)
+        return psutil.pid_exists(pid)
+    except:
+        # Fallback method without psutil
+        try:
+            os.kill(pid, 0)
+            return True
+        except OSError:
+            return False
+
+def can_replace_file(filepath):
+    """Check if we can replace the file by attempting to rename it."""
+    if not os.path.exists(filepath):
+        return True
+    
+    test_path = filepath + ".test_write"
+    try:
+        # Try to rename the file - this fails if process is still using it
+        os.rename(filepath, test_path)
+        # Rename it back
+        os.rename(test_path, filepath)
+        return True
+    except (PermissionError, FileNotFoundError, OSError):
+        return False
+
+# Wait for current process to exit (up to 60 seconds)
+print(f"Waiting for main process (PID: {{CURRENT_PID}}) to exit...")
+for i in range(60):
+    if not is_process_running(CURRENT_PID):
+        print("Main process has exited")
         break
-    except PermissionError:
-        time.sleep(1)
-    except FileNotFoundError:
-        break
+    time.sleep(1)
+    if i % 10 == 0:  # Print status every 10 seconds
+        print(f"Still waiting... ({{i}}s elapsed)")
 else:
-    # Timeout - exit with error
+    print("Timeout waiting for process to exit, but will try to continue")
+
+# Additional wait and check if file can be replaced
+print("Checking if executable can be replaced...")
+for i in range(10):
+    if can_replace_file(OLD):
+        print("Executable is ready for replacement")
+        break
+    time.sleep(1)
+else:
+    print("File may still be locked, but will attempt replacement")
+
+# Try to replace the executable with multiple strategies
+print("Replacing executable...")
+max_attempts = 10
+success = False
+
+for attempt in range(max_attempts):
+    try:
+        print(f"Attempt {{attempt + 1}}/{{max_attempts}}")
+        
+        # Strategy 1: Try to delete old file first, then copy new one
+        if os.path.exists(OLD):
+            try:
+                print("Deleting old executable...")
+                os.remove(OLD)
+                print("Old executable deleted")
+            except Exception as e:
+                print(f"Could not delete old executable: {{e}}")
+                # Try alternative strategy
+                temp_old = OLD + f".old_{{attempt}}"
+                print(f"Moving old executable to {{temp_old}}...")
+                shutil.move(OLD, temp_old)
+                print("Old executable moved")
+        
+        # Copy new executable
+        print("Copying new executable...")
+        shutil.copy2(NEW, OLD)
+        print("New executable copied successfully")
+        
+        # Verify the copy worked
+        if os.path.exists(OLD):
+            old_size = os.path.getsize(OLD)
+            new_size = os.path.getsize(NEW)
+            if old_size == new_size:
+                print(f"Verification successful: {{old_size}} bytes")
+                success = True
+                break
+            else:
+                print(f"Size mismatch: old={{old_size}}, new={{new_size}}")
+                raise Exception("File size verification failed")
+        else:
+            raise Exception("New executable not found after copy")
+        
+    except PermissionError as e:
+        print(f"Attempt {{attempt + 1}} failed: Permission denied - {{e}}")
+        if attempt < max_attempts - 1:
+            wait_time = min(2 + attempt, 10)  # Exponential backoff, max 10s
+            print(f"Retrying in {{wait_time}} seconds...")
+            time.sleep(wait_time)
+    except Exception as e:
+        print(f"Attempt {{attempt + 1}} failed: {{e}}")
+        if attempt < max_attempts - 1:
+            wait_time = min(2 + attempt, 10)
+            print(f"Retrying in {{wait_time}} seconds...")
+            time.sleep(wait_time)
+
+if not success:
+    print("Failed to replace executable after all attempts")
+    # Try to restore backup if main executable is missing
+    if os.path.exists(BACKUP) and not os.path.exists(OLD):
+        try:
+            shutil.copy2(BACKUP, OLD)
+            print("Restored backup executable")
+        except Exception as restore_error:
+            print(f"Failed to restore backup: {{restore_error}}")
     sys.exit(1)
 
-# Move new executable to replace old one
-try:
-    shutil.move(NEW, OLD)
-except Exception as e:
+# Verify the new executable exists and is accessible
+if not os.path.exists(OLD):
+    print("Error: New executable not found after replacement")
     sys.exit(1)
+
+try:
+    file_size = os.path.getsize(OLD)
+    print(f"New executable size: {{file_size}} bytes")
+    if file_size < 1024 * 1024:  # Less than 1MB
+        print("Warning: New executable seems unusually small")
+except Exception as e:
+    print(f"Warning: Could not verify new executable: {{e}}")
 
 # Launch the new executable
+print("Launching new executable...")
 try:
-    subprocess.Popen([OLD])
+    # Use absolute path and set working directory
+    new_process = subprocess.Popen(
+        [OLD], 
+        cwd=os.path.dirname(OLD),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+    print(f"New executable launched successfully (PID: {{new_process.pid}})")
+    
+    # Clean up temporary files
+    try:
+        if os.path.exists(NEW):
+            os.remove(NEW)
+            print("Cleaned up temporary new executable")
+    except Exception as e:
+        print(f"Warning: Could not clean up temporary file: {{e}}")
+    
+    # Clean up old backup files (keep only the most recent one)
+    try:
+        import glob
+        old_files = glob.glob(OLD + ".old_*")
+        for old_file in old_files:
+            try:
+                os.remove(old_file)
+                print(f"Cleaned up old file: {{old_file}}")
+            except Exception:
+                pass
+    except Exception:
+        pass
+        
 except Exception as e:
+    print(f"Failed to launch new executable: {{e}}")
     sys.exit(1)
-"""
+
+print("Update helper completed successfully")
+'''
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w", encoding="utf-8") as helper:
             helper.write(helper_code)
@@ -275,6 +423,48 @@ except Exception as e:
                     progress_callback(restore_msg)
                 print(restore_msg)
         return False
+
+
+def _cleanup_old_update_files(exe_path, progress_callback=None):
+    """Clean up old backup files and temporary files from previous updates."""
+    try:
+        exe_dir = os.path.dirname(exe_path)
+        exe_name = os.path.basename(exe_path)
+        
+        # Look for old backup files and temporary files
+        cleanup_patterns = [
+            exe_path + ".backup",
+            exe_path + ".old_*",
+            exe_path + ".test_write",
+        ]
+        
+        files_cleaned = 0
+        for pattern in cleanup_patterns:
+            if "*" in pattern:
+                # Handle wildcard patterns
+                import glob
+                matching_files = glob.glob(pattern)
+                for file_path in matching_files:
+                    try:
+                        os.remove(file_path)
+                        files_cleaned += 1
+                    except Exception:
+                        pass
+            else:
+                # Handle exact file paths
+                if os.path.exists(pattern):
+                    try:
+                        os.remove(pattern)
+                        files_cleaned += 1
+                    except Exception:
+                        pass
+        
+        if files_cleaned > 0 and progress_callback:
+            progress_callback(f"Cleaned up {files_cleaned} old update files")
+            
+    except Exception as e:
+        if progress_callback:
+            progress_callback(f"Warning: Could not clean up old files: {e}")
 
 
 def update_available() -> bool:
@@ -441,6 +631,8 @@ def ensure_up_to_date(progress_callback: Optional[Callable[[str], None]] = None,
                         progress_callback("Force updating to latest version (current version unknown)")
                         
         # Download and replace
+        _cleanup_old_update_files(current_exe_path, progress_callback)
+        
         if _download_and_replace_executable(download_url, current_exe_path, progress_callback, cancel_check):
             if progress_callback:
                 progress_callback("Update process completed successfully!")
