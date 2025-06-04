@@ -167,6 +167,27 @@ class AimbotApp:
                 f"Failed to check for updates: {e}"
             )
 
+    def _force_update(self) -> None:
+        """Download and install the latest update regardless of version."""
+        try:
+            result = messagebox.askyesno(
+                "Force Update",
+                "Download and install the latest version now?\n\n"
+                "This may restart the application.",
+            )
+            if result:
+                self._update_status("Updating...", "blue")
+                self.root.update()
+                try:
+                    ensure_up_to_date()
+                except SystemExit:
+                    pass
+                except Exception as exc:
+                    messagebox.showerror("Update Failed", f"Failed to update: {exc}")
+                    self._update_status("Update failed", "red")
+        except Exception as exc:
+            messagebox.showerror("Force Update Failed", f"Failed to update: {exc}")
+
     def _build_widgets(self) -> None:
         # apply a slightly more modern theme if available
         style = ttk.Style(self.root)
@@ -186,6 +207,7 @@ class AimbotApp:
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Help", menu=help_menu)
         help_menu.add_command(label="Check for Updates", command=self._check_for_updates)
+        help_menu.add_command(label="Force Update", command=self._force_update)
         
         # Main container
         main_frame = ttk.Frame(self.root, padding=10)
