@@ -12,8 +12,14 @@ from tkinter import messagebox, scrolledtext, ttk
 
 from .aimbot import Aimbot, AimbotSettings
 from .memory import DeadlockMemory
-from .gui_utils import UpdateProgressDialog, GUILogHandler, load_saved_settings, save_settings, get_build_sha
-from .update_checker import ensure_up_to_date, update_available, _get_current_version
+from .gui_utils import (
+    GUILogHandler,
+    load_saved_settings,
+    save_settings,
+    get_build_sha,
+    run_update_dialog,
+)
+from .update_checker import update_available
 
 
 
@@ -76,7 +82,7 @@ class AimbotApp:
                     "You'll see detailed progress during the update process.",
                 )
                 if result:
-                    self._perform_update_with_progress()
+                    run_update_dialog(self.root)
             else:
                 # For source installations, show git pull message
                 messagebox.showwarning(
@@ -84,73 +90,6 @@ class AimbotApp:
                     "A newer DeadUnlock version is available. Please run 'git pull'.",
                 )
 
-    def _perform_update_with_progress(self, force: bool = False):
-        """Perform update with detailed progress dialog."""
-        progress_dialog = UpdateProgressDialog(self.root)
-        
-        def progress_callback(message: str):
-            """Callback to update progress dialog."""
-            progress_dialog.update_status(message, is_error="failed" in message.lower() or "error" in message.lower())
-        
-        def update_thread():
-            """Run update in separate thread."""
-            try:
-                # Check for cancellation
-                if progress_dialog.cancelled:
-                    return
-                    
-                # Add initial version info
-                current_version = _get_current_version()
-                if current_version:
-                    progress_callback(f"Current version: {current_version[:7]}")
-                else:
-                    progress_callback("Current version: Unknown")
-                
-                # Check for cancellation
-                if progress_dialog.cancelled:
-                    return
-                
-                # Get latest release info for version comparison
-                from .update_checker import _get_latest_release
-                latest_release = _get_latest_release()
-                if latest_release:
-                    tag_name = latest_release.get("tag_name", "")
-                    if tag_name.startswith("build-"):
-                        latest_commit = tag_name[6:][:7]  # Get first 7 chars of commit after "build-"
-                        progress_callback(f"Latest version: {latest_commit}")
-                        
-                        # Show release info if available
-                        published_at = latest_release.get("published_at", "")
-                        if published_at:
-                            import datetime
-                            try:
-                                # Parse ISO date and format it nicely
-                                dt = datetime.datetime.fromisoformat(published_at.replace('Z', '+00:00'))
-                                formatted_date = dt.strftime("%Y-%m-%d %H:%M")
-                                progress_callback(f"Release date: {formatted_date}")
-                            except:
-                                pass
-                
-                # Check for cancellation before starting update
-                if progress_dialog.cancelled:
-                    progress_callback("Update cancelled before download started")
-                    return
-                
-                # Start the actual update process
-                ensure_up_to_date(
-                    progress_callback,
-                    force=force,
-                    cancel_check=lambda: progress_dialog.cancelled,
-                )
-            except SystemExit:
-                # Terminate entire application so the helper can replace the binary
-                os._exit(0)
-            except Exception as e:
-                progress_callback(f"Update failed: {str(e)}")
-                progress_dialog.enable_close()
-        
-        # Start update in background thread
-        threading.Thread(target=update_thread, daemon=True).start()
 
     def _check_for_updates(self) -> None:
         """Manually check for updates and offer to update if available."""
@@ -166,7 +105,7 @@ class AimbotApp:
                         "You'll see detailed progress during the update process.",
                     )
                     if result:
-                        self._perform_update_with_progress()
+                        run_update_dialog(self.root)
                 else:
                     # For source installations, show git pull message
                     messagebox.showinfo(
@@ -193,7 +132,7 @@ class AimbotApp:
                 "This will restart the application and show detailed progress.",
             )
             if result:
-                self._perform_update_with_progress(force=True)
+                run_update_dialog(self.root, force=True)
         except Exception as exc:
             messagebox.showerror("Force Update Failed", f"Failed to update: {exc}")
 
@@ -373,21 +312,7 @@ class AimbotApp:
                         "A newer version is available. Update now before starting?",
                     )
                     if result:
-                        progress_dialog = UpdateProgressDialog(self.root)
-                        
-                        def progress_callback(message: str):
-                            progress_dialog.update_status(message, is_error="failed" in message.lower())
-                        
-                        def update_thread():
-                            try:
-                                ensure_up_to_date(progress_callback, cancel_check=lambda: progress_dialog.cancelled)
-                            except SystemExit:
-                                pass
-                            except Exception as e:
-                                progress_callback(f"Update failed: {str(e)}")
-                                progress_dialog.enable_close()
-                        
-                        threading.Thread(target=update_thread, daemon=True).start()
+                        run_update_dialog(self.root)
                         return  # Don't start aimbot if updating
             
             mem = DeadlockMemory()
