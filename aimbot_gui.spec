@@ -4,7 +4,7 @@ a = Analysis(
     ['launcher.py'],
     pathex=[],
     binaries=[],
-    datas=[('version.txt', '.'), ('img/deadunlock_icon.png', 'img')],
+    datas=[('version.txt', '.'), ('img/deadunlock_icon.png', 'img'), ('img/deadunlock_icon.ico', 'img')],
     hiddenimports=[
         'numpy',
         'numpy.core',
@@ -55,7 +55,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,
