@@ -147,3 +147,12 @@ pyinstaller aimbot_gui.spec
 
 The resulting `.exe` will be placed in the `dist` folder and can be run on
 machines without Python installed.
+
+## Contributing
+
+Contributions are very welcome. If you have ideas or fixes, fork the repository, create a feature branch and open a pull request against `main`.
+Run the following to make sure all Python files compile before submitting:
+
+```bash
+python -m py_compile $(git ls-files '*.py')
+```
