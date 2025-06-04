@@ -64,3 +64,8 @@ python -m deadlock.esp
 
 This spawns a transparent Pygame window that follows the game and updates in
 real time.
+
+The overlay is also handy for discovering bone indexes for each hero. When
+Valve updates a character model, running it lets you read the new bone numbers
+and update the head and body mappings stored in
+[`deadlock/heroes.py`](deadlock/heroes.py).
