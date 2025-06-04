@@ -2,7 +2,7 @@ name: Build GUI and create release
 
 on:
   push:
-    branches: ["**"]
+    branches: ["main"]
 
 jobs:
   build:
@@ -35,4 +35,4 @@ jobs:
           name: ${{ steps.vars.outputs.tag }}
           files: dist/aimbot_gui.exe
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_API_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN  }}
