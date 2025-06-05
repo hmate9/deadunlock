@@ -74,6 +74,9 @@ class AimbotSettings:
     vindicta_key: int = ord("R")
     #: virtual-key code for Vindicta's lock trigger
 
+    headshot_on_acquire: bool = True
+    #: force headshots for 0.4s when locking on after a 2s gap
+
 
 class Aimbot:
     """Basic aimbot controller."""
@@ -87,11 +90,14 @@ class Aimbot:
         self.force_aim_until: float = 0.0
         self.paused = False
         self.stop_requested = False
-        
+
         # Headshot decision caching
         self._headshot_cache: bool = False
         self._headshot_cache_time: float = 0.0
         self._headshot_cache_interval: float = 0.4
+
+        self._force_head_until: float = 0.0
+        self._last_lock_lost: float = 0.0
 
         logger.info("Aimbot initialised with settings: %s", self.settings)
 
@@ -113,16 +119,18 @@ class Aimbot:
 
     def should_aim_for_head(self) -> bool:
         """Return ``True`` if the bot should attempt a headshot.
-        
+
         Caches the random decision for 0.4 seconds to avoid frequent changes.
         """
         current_time = time.time()
-        
-        # Check if we need to update the cached decision
+
+        if self.settings.headshot_on_acquire and current_time < self._force_head_until:
+            return True
+
         if current_time - self._headshot_cache_time >= self._headshot_cache_interval:
             self._headshot_cache = random.random() < self.settings.headshot_probability
             self._headshot_cache_time = current_time
-        
+
         return self._headshot_cache
 
     def pause(self) -> None:
@@ -180,6 +188,8 @@ class Aimbot:
                     logger.info("Aimbot turned %s", "on" if active else "off")
             if not mouse_down:
                 # Left mouse button is not held and no ability lock active
+                if self.locked_on is not None:
+                    self._last_lock_lost = time.time()
                 self.locked_on = None
                 time.sleep(0.01)
                 continue
@@ -215,6 +225,10 @@ class Aimbot:
                             target_idx = i
                 self.locked_on = target_idx
                 if self.locked_on is not None:
+                    if time.time() - self._last_lock_lost > 2:
+                        self._force_head_until = (
+                            time.time() + self._headshot_cache_interval
+                        )
                     logger.debug("Locked on to entity %d", self.locked_on)
 
             if prev_locked != self.locked_on:
@@ -234,6 +248,8 @@ class Aimbot:
                 target = self.mem.read_entity(self.locked_on)
             except Exception:
                 logger.debug("Failed to read entity %s; losing target", self.locked_on)
+                if self.locked_on is not None:
+                    self._last_lock_lost = time.time()
                 self.locked_on = None
                 continue
 
