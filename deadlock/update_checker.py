@@ -243,12 +243,12 @@ def ensure_up_to_date(progress_callback: Optional[Callable[[str], None]] = None,
         
         if download_and_replace_executable(download_url, current_exe_path, progress_callback, cancel_check):
             if progress_callback:
-                progress_callback("Update completed successfully!")
-                progress_callback("Please close and restart the application to use the new version.")
-            print("Update completed successfully! Please restart the application.")
+                progress_callback("Update prepared successfully!")
+                progress_callback("Close the application to complete the update automatically.")
+            print("Update prepared successfully! Close the application to complete the update.")
             return
         else:
-            error_msg = "Update process failed - continuing with current version"
+            error_msg = "Update preparation failed - continuing with current version"
             if progress_callback:
                 progress_callback(error_msg)
             print(error_msg)

@@ -78,8 +78,8 @@ class AimbotApp:
                 result = messagebox.askyesno(
                     "Update available",
                     "A newer DeadUnlock version is available. Would you like to update now?\n\n"
-                    "The application will download and install the update.\n"
-                    "After the update completes, you'll need to restart the application manually.",
+                    "The update will be prepared in the background.\n"
+                    "When ready, simply close and restart the application to complete the update.",
                 )
                 if result:
                     run_update_dialog(self.root)
@@ -101,8 +101,8 @@ class AimbotApp:
                     result = messagebox.askyesno(
                         "Update Available",
                         "A newer DeadUnlock version is available. Would you like to update now?\n\n"
-                        "The application will download and install the update.\n"
-                        "After the update completes, you'll need to restart the application manually.",
+                        "The update will be prepared in the background.\n"
+                        "When ready, simply close and restart the application to complete the update.",
                     )
                     if result:
                         run_update_dialog(self.root)
@@ -128,8 +128,8 @@ class AimbotApp:
         try:
             result = messagebox.askyesno(
                 "Force Update",
-                "Download and install the latest version now?\n\n"
-                "After the update completes, you'll need to restart the application manually.",
+                "Download and prepare the latest version now?\n\n"
+                "When ready, simply close and restart the application to complete the update.",
             )
             if result:
                 run_update_dialog(self.root, force=True)

@@ -186,11 +186,12 @@ class GUILogHandler(logging.Handler):
 
 
 def show_update_complete_dialog(parent: tk.Tk) -> None:
-    """Show dialog informing user that update is complete and they need to restart."""
+    """Show dialog informing user that update is ready and they need to close the app."""
     messagebox.showinfo(
-        "Update Complete",
-        "Update completed successfully!\n\n"
-        "Please close and restart the application to use the new version.",
+        "Update Ready",
+        "Update has been prepared successfully!\n\n"
+        "Close the application now to complete the update automatically.\n"
+        "The new version will be ready when you restart.",
         parent=parent
     )
 

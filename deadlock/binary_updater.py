@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
+import sys
 import tempfile
+import time
 from typing import Callable, Optional
 
 import requests
@@ -65,9 +68,15 @@ def cleanup_old_update_files(exe_path: str, progress_callback: Callable[[str], N
     """Remove backup and temp files from previous updates."""
     patterns = [exe_path + ".backup", exe_path + ".old_*", exe_path + ".test_write"]
     removed = 0
+    
+    # Also clean up any leftover helper scripts
+    import glob
+    exe_dir = os.path.dirname(exe_path)
+    helper_pattern = os.path.join(exe_dir, "tmp*.py")
+    patterns.extend(glob.glob(helper_pattern))
+    
     for pattern in patterns:
         if "*" in pattern:
-            import glob
             files = glob.glob(pattern)
         else:
             files = [pattern]
@@ -82,8 +91,55 @@ def cleanup_old_update_files(exe_path: str, progress_callback: Callable[[str], N
         progress_callback(f"Cleaned up {removed} old update files")
 
 
+def _create_update_helper(current_exe: str, new_exe: str, backup_path: str) -> str:
+    """Create a simple update helper script that waits for the main process to exit."""
+    helper_code = f'''import os
+import shutil
+import time
+import sys
+
+current_exe = r"{current_exe}"
+new_exe = r"{new_exe}"
+backup_path = r"{backup_path}"
+
+# Wait a moment for the main process to fully exit
+time.sleep(2)
+
+try:
+    # Replace the executable
+    shutil.copy2(new_exe, current_exe)
+    print("Update completed successfully!")
+    
+    # Clean up temporary files
+    if os.path.exists(new_exe):
+        os.remove(new_exe)
+    if os.path.exists(backup_path):
+        os.remove(backup_path)
+        
+except Exception as e:
+    print(f"Update failed: {{e}}")
+    # Try to restore backup
+    try:
+        if os.path.exists(backup_path):
+            shutil.copy2(backup_path, current_exe)
+            print("Restored backup")
+    except Exception:
+        print("Failed to restore backup - manual intervention required")
+
+# Clean up this helper script
+try:
+    os.remove(__file__)
+except Exception:
+    pass
+'''
+    
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as f:
+        f.write(helper_code)
+        return f.name
+
+
 def download_and_replace_executable(download_url: str, current_exe_path: str, progress_callback: Callable[[str], None] | None = None, cancel_check: Callable[[], bool] | None = None) -> bool:
-    """Download new executable and replace the current one."""
+    """Download new executable and create helper to replace it after exit."""
     if progress_callback:
         progress_callback("Initializing download...")
     cleanup_old_update_files(current_exe_path, progress_callback)
@@ -104,33 +160,33 @@ def download_and_replace_executable(download_url: str, current_exe_path: str, pr
     backup_path = _create_backup(current_exe_path, progress_callback)
     
     if progress_callback:
-        progress_callback("Replacing executable...")
+        progress_callback("Preparing update helper...")
     
     try:
-        # Replace the current executable with the new one
-        shutil.copy2(temp_path, current_exe_path)
-        if progress_callback:
-            progress_callback("Update completed successfully! Please restart the application.")
+        # Create update helper script
+        helper_path = _create_update_helper(current_exe_path, temp_path, backup_path)
         
-        # Clean up temporary file
-        os.remove(temp_path)
+        if progress_callback:
+            progress_callback("Update ready! Close the application to complete the update.")
+            progress_callback("The update will be applied automatically when you exit.")
+        
+        # Launch the helper script in the background to run after exit
+        if sys.platform == 'win32':
+            subprocess.Popen([sys.executable, helper_path], 
+                           creationflags=subprocess.CREATE_NO_WINDOW)
+        else:
+            subprocess.Popen([sys.executable, helper_path])
+        
         return True
         
     except Exception as e:
         if progress_callback:
-            progress_callback(f"Failed to replace executable: {e}")
-        # Restore backup if replacement failed
-        try:
-            if os.path.exists(backup_path):
-                shutil.copy2(backup_path, current_exe_path)
-                if progress_callback:
-                    progress_callback("Restored backup due to update failure")
-        except Exception:
-            if progress_callback:
-                progress_callback("Failed to restore backup - manual intervention may be required")
+            progress_callback(f"Failed to prepare update: {e}")
         
-        # Clean up temporary file
+        # Clean up on failure
         if os.path.exists(temp_path):
             os.remove(temp_path)
+        if os.path.exists(backup_path):
+            os.remove(backup_path)
         return False
 
