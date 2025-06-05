@@ -143,8 +143,9 @@ class Aimbot:
     def run(self) -> None:
         """Main aimbot loop."""
 
-        logger.info("Aimbot loop started")
-        active = False
+        logger.info("Aimbot loop started - hold the left mouse button to aim")
+        active = win32api.GetKeyState(0x01) < 0 or time.time() < self.force_aim_until
+        log_state_changes = False
         prev_locked = None
         hold_down_left_click = False
         while not self.stop_requested:
@@ -170,9 +171,13 @@ class Aimbot:
                 continue
 
             mouse_down = win32api.GetKeyState(0x01) < 0 or time.time() < self.force_aim_until
-            if mouse_down != active:
+            if not log_state_changes and not mouse_down:
+                log_state_changes = True
+                active = False
+            elif mouse_down != active:
                 active = mouse_down
-                logger.info("Aimbot turned %s", "on" if active else "off")
+                if log_state_changes:
+                    logger.info("Aimbot turned %s", "on" if active else "off")
             if not mouse_down:
                 # Left mouse button is not held and no ability lock active
                 self.locked_on = None
