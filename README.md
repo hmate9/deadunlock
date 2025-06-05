@@ -167,3 +167,15 @@ Run the following to make sure all Python files compile before submitting:
 python -m py_compile $(git ls-files '*.py')
 ```
 
+### Project structure
+
+The repository is organised as follows:
+
+- `deadlock/` – Python package containing the aimbot, ESP and helper modules.
+- `launcher.py` – entry point used when bundling the GUI with PyInstaller.
+- `offset_finder.py` – scans the game to find updated memory offsets.
+- `signature_patterns.py` – byte patterns consumed by the offset finder.
+- `aimbot_gui.spec` – PyInstaller configuration for building an executable.
+- `version.txt` – text file storing the current version string.
+- `img/` – images used in the README and GUI icons.
+
