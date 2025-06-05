@@ -1,7 +1,6 @@
 import os
 import subprocess
 import sys
-import tempfile
 from typing import Optional, Callable
 
 import requests
@@ -244,10 +243,10 @@ def ensure_up_to_date(progress_callback: Optional[Callable[[str], None]] = None,
         
         if download_and_replace_executable(download_url, current_exe_path, progress_callback, cancel_check):
             if progress_callback:
-                progress_callback("Update process completed successfully!")
-                progress_callback("Application will restart automatically...")
-            print("Update helper launched. Exiting for update...")
-            sys.exit(0)
+                progress_callback("Update completed successfully!")
+                progress_callback("Please close and restart the application to use the new version.")
+            print("Update completed successfully! Please restart the application.")
+            return
         else:
             error_msg = "Update process failed - continuing with current version"
             if progress_callback:
@@ -280,5 +279,5 @@ def ensure_up_to_date(progress_callback: Optional[Callable[[str], None]] = None,
             progress_callback("Git pull completed successfully")
             progress_callback("Update complete. Please restart the program.")
         print("Update complete. Please restart the program.")
-        _pause("Press Enter to exit...")
-        sys.exit(0)
+        _pause("Press Enter to continue...")
+        return

@@ -185,6 +185,16 @@ class GUILogHandler(logging.Handler):
             pass
 
 
+def show_update_complete_dialog(parent: tk.Tk) -> None:
+    """Show dialog informing user that update is complete and they need to restart."""
+    messagebox.showinfo(
+        "Update Complete",
+        "Update completed successfully!\n\n"
+        "Please close and restart the application to use the new version.",
+        parent=parent
+    )
+
+
 def run_update_dialog(parent: tk.Tk, force: bool = False) -> None:
     """Show update progress dialog and execute the updater in a thread."""
 
@@ -220,8 +230,14 @@ def run_update_dialog(parent: tk.Tk, force: bool = False) -> None:
                 force=force,
                 cancel_check=lambda: progress_dialog.cancelled,
             )
-        except SystemExit:
-            os._exit(0)
+            
+            # Check if update was successful (no exceptions means success)
+            if not progress_dialog.cancelled:
+                # Update completed successfully, show completion dialog
+                progress_dialog.dialog.after(500, lambda: show_update_complete_dialog(parent))
+            
+            # Enable close button
+            progress_dialog.enable_close()
         except Exception as exc:
             progress_callback(f"Update failed: {exc}")
             progress_dialog.enable_close()
