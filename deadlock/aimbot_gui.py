@@ -17,9 +17,8 @@ from .gui_utils import (
     load_saved_settings,
     save_settings,
     get_build_sha,
-    run_update_dialog,
 )
-from .update_checker import update_available
+from .update_checker import update_available, open_release_page
 
 
 
@@ -72,46 +71,24 @@ class AimbotApp:
     def _notify_if_outdated(self) -> None:
         """Show a warning dialog if the local repo is outdated."""
         if update_available():
-            # Check if we're running as a binary
-            if getattr(sys, 'frozen', False):
-                # For binary releases, the update will be automatic
-                result = messagebox.askyesno(
-                    "Update available",
-                    "A newer DeadUnlock version is available. Would you like to update now?\n\n"
-                    "The update will be prepared in the background.\n"
-                    "When ready, simply close and restart the application to complete the update.",
-                )
-                if result:
-                    run_update_dialog(self.root)
-            else:
-                # For source installations, show git pull message
-                messagebox.showwarning(
-                    "Update available",
-                    "A newer DeadUnlock version is available. Please run 'git pull'.",
-                )
+            result = messagebox.askyesno(
+                "Update available",
+                "A newer DeadUnlock version is available. Open the download page?",
+            )
+            if result:
+                open_release_page()
 
 
     def _check_for_updates(self) -> None:
         """Manually check for updates and offer to update if available."""
         try:
             if update_available():
-                # Check if we're running as a binary
-                if getattr(sys, 'frozen', False):
-                    # For binary releases, offer automatic update
-                    result = messagebox.askyesno(
-                        "Update Available",
-                        "A newer DeadUnlock version is available. Would you like to update now?\n\n"
-                        "The update will be prepared in the background.\n"
-                        "When ready, simply close and restart the application to complete the update.",
-                    )
-                    if result:
-                        run_update_dialog(self.root)
-                else:
-                    # For source installations, show git pull message
-                    messagebox.showinfo(
-                        "Update Available",
-                        "A newer DeadUnlock version is available. Please run 'git pull' to update.",
-                    )
+                result = messagebox.askyesno(
+                    "Update Available",
+                    "A newer DeadUnlock version is available. Open the download page?",
+                )
+                if result:
+                    open_release_page()
             else:
                 messagebox.showinfo(
                     "No Updates",
@@ -119,25 +96,9 @@ class AimbotApp:
                 )
         except Exception as e:
             messagebox.showerror(
-                "Update Check Failed", 
+                "Update Check Failed",
                 f"Failed to check for updates: {e}"
             )
-
-    def _force_update(self) -> None:
-        """Download and install the latest update regardless of version."""
-        try:
-            result = messagebox.askyesno(
-                "Force Update",
-                "Download and prepare the latest version now?\n\n"
-                "When ready, simply close and restart the application to complete the update.",
-            )
-            if result:
-                run_update_dialog(self.root, force=True)
-        except Exception as exc:
-            messagebox.showerror("Force Update Failed", f"Failed to update: {exc}")
-
-    def _build_widgets(self) -> None:
-
         self._configure_style()
         self._create_menu()
 
@@ -166,7 +127,6 @@ class AimbotApp:
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Help", menu=help_menu)
         help_menu.add_command(label="Check for Updates", command=self._check_for_updates)
-        help_menu.add_command(label="Force Update", command=self._force_update)
 
     def _build_settings_frame(self, parent: ttk.Frame) -> None:
         frame = ttk.LabelFrame(parent, text="Settings", padding=10)
@@ -309,11 +269,11 @@ class AimbotApp:
                 if update_available():
                     result = messagebox.askyesno(
                         "Update Available",
-                        "A newer version is available. Update now before starting?",
+                        "A newer version is available. Open the download page?",
                     )
                     if result:
-                        run_update_dialog(self.root)
-                        return  # Don't start aimbot if updating
+                        open_release_page()
+                        return
 
             self.is_running = True
             self.is_paused = False
@@ -445,3 +405,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
