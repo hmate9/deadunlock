@@ -109,23 +109,26 @@ class UpdateProgressDialog:
         self.cancelled = False
 
     def update_status(self, message: str, is_error: bool = False) -> None:
-        """Update the status label and add to log."""
+        """Thread-safe status update with logging."""
         if self.closed:
             return
 
-        self.status_label.config(text=message)
+        def _do_update() -> None:
+            self.status_label.config(text=message)
 
-        self.log_text.config(state='normal')
-        timestamp = time.strftime("%H:%M:%S")
-        log_entry = f"[{timestamp}] {message}\n"
-        if is_error:
-            self.log_text.insert(tk.END, log_entry)
-            self.log_text.tag_add("error", "end-2c linestart", "end-2c")
-            self.log_text.tag_config("error", foreground="#cc0000")
-        else:
-            self.log_text.insert(tk.END, log_entry)
-        self.log_text.see(tk.END)
-        self.log_text.config(state='disabled')
+            self.log_text.config(state='normal')
+            timestamp = time.strftime("%H:%M:%S")
+            log_entry = f"[{timestamp}] {message}\n"
+            if is_error:
+                self.log_text.insert(tk.END, log_entry)
+                self.log_text.tag_add("error", "end-2c linestart", "end-2c")
+                self.log_text.tag_config("error", foreground="#cc0000")
+            else:
+                self.log_text.insert(tk.END, log_entry)
+            self.log_text.see(tk.END)
+            self.log_text.config(state='disabled')
+
+        self.dialog.after(0, _do_update)
 
     def set_progress(self, value: float, maximum: float = 100.0) -> None:
         """Set progress bar value."""
@@ -238,9 +241,9 @@ def run_update_dialog(parent: tk.Tk, force: bool = False) -> None:
                 progress_dialog.dialog.after(500, lambda: show_update_complete_dialog(parent))
             
             # Enable close button
-            progress_dialog.enable_close()
+            progress_dialog.dialog.after(0, progress_dialog.enable_close)
         except Exception as exc:
             progress_callback(f"Update failed: {exc}")
-            progress_dialog.enable_close()
+            progress_dialog.dialog.after(0, progress_dialog.enable_close)
 
     threading.Thread(target=update_thread, daemon=True).start()
