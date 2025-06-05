@@ -10,7 +10,7 @@ try:
 except NameError:
     project_root = Path(os.getcwd())
 
-icon_file = project_root / 'img' / 'deadunlock_icon.png'
+icon_file = project_root / 'img' / 'deadunlock_icon.ico'
 
 a = Analysis(
     ['launcher.py'],
@@ -19,6 +19,7 @@ a = Analysis(
     datas=[
         ('version.txt', '.'),
         ('img/deadunlock_icon.png', 'img'),
+        ('img/deadunlock_icon.ico', 'img'),
         (str(icon_file), 'img'),
     ],
     hiddenimports=[
