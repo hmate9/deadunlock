@@ -99,6 +99,9 @@ class AimbotApp:
                 "Update Check Failed",
                 f"Failed to check for updates: {e}"
             )
+
+    def _build_widgets(self) -> None:
+        """Create and arrange the GUI widgets."""
         self._configure_style()
         self._create_menu()
 
