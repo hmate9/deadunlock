@@ -26,16 +26,6 @@ jobs:
         run: |
           echo ${{ github.sha }} > version.txt
           
-          # Debug: Check if ICO file exists before building
-          if (Test-Path "img/deadunlock_icon.ico") {
-              $size = (Get-Item "img/deadunlock_icon.ico").Length
-              Write-Output "ICO file found: $size bytes"
-          } else {
-              Write-Error "ICO file not found before building!"
-              Get-ChildItem img/
-              exit 1
-          }
-          
           # Build with verbose output
           pyinstaller --log-level=INFO aimbot_gui.spec
           
