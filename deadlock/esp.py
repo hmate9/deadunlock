@@ -12,6 +12,7 @@ import pygame
 
 from .helpers import world_to_screen
 from .memory import DeadlockMemory
+from . import mem_offsets as mo
 from .update_checker import ensure_up_to_date
 
 logger = logging.getLogger(__name__)
@@ -83,13 +84,15 @@ class ESP:
                 except Exception:
                     logger.debug("Failed to read entity %d", i)
                     continue
-                bone_array = self.mem.read_longlong(data["node"] + 0x170 + 0x80)
+                bone_array = self.mem.read_longlong(
+                    data["node"] + mo.SKELETON_BASE + mo.BONE_ARRAY
+                )
                 bones = []
                 for b in range(0, 64):
                     start = (
-                        self.mem.read_float(bone_array + b * 32),
-                        self.mem.read_float(bone_array + b * 32 + 4),
-                        self.mem.read_float(bone_array + b * 32 + 8),
+                        self.mem.read_float(bone_array + b * mo.BONE_STEP),
+                        self.mem.read_float(bone_array + b * mo.BONE_STEP + 4),
+                        self.mem.read_float(bone_array + b * mo.BONE_STEP + 8),
                     )
                     bones.append((start, start))
                 logger.debug("Drawing skeleton for entity %d", i)

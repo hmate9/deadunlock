@@ -139,6 +139,10 @@ important memory addresses such as the entity list or camera manager. These patt
 defined in [`signature_patterns.py`](signature_patterns.py) and consumed by
 `offset_finder.py` when scanning the running process.
 
+All offsets derived from these patterns are stored in
+[`deadlock/mem_offsets.py`](deadlock/mem_offsets.py).  This module is imported
+throughout the project to avoid sprinkling magic numbers across the codebase.
+
 If Valve updates Deadlock and the underlying code changes, these patterns may no longer match.
 Outdated signatures will result in missing or incorrect offsets, causing other tools in this
 repository to malfunction. When that happens, the signatures need to be updated by scanning the
@@ -184,6 +188,7 @@ python -m py_compile $(git ls-files '*.py')
   - `heroes.py` – hero enumeration and bone lookups.
   - `helpers.py` – vector math and coordinate conversion utilities.
   - `memory.py` – wrapper over ``pymem`` for reading game memory.
+  - `mem_offsets.py` – central location for hardcoded memory offsets.
   - `update_checker.py` – utilities for checking GitHub for new releases.
 - `launcher.py` – entry point used when bundling the GUI with PyInstaller.
 - `offset_finder.py` – scans the game to find updated memory offsets.
