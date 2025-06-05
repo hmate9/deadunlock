@@ -132,6 +132,20 @@ Valve updates a character model, running it lets you read the new bone numbers
 and update the head and body mappings stored in
 [`deadlock/heroes.py`](deadlock/heroes.py).
 
+### Rust ESP Overlay
+
+To run the high-performance Rust ESP overlay, ensure you have a Rust toolchain
+installed and the game is running:
+
+```bash
+python esp_rs_init.py
+cd esp-rs
+cargo run --release
+```
+
+This will spawn a click-through, always-on-top transparent window that draws
+player skeletons constantly over the game with minimal overhead.
+
 ## Offset Signatures
 
 The offset finder relies on *signatures*—unique byte patterns in the game's modules—to locate
