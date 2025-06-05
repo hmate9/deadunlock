@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 import logging
 import queue
@@ -15,7 +16,12 @@ from tkinter import scrolledtext, ttk, messagebox
 from .update_checker import _get_current_version
 from .aimbot import AimbotSettings
 
-SETTINGS_FILE = os.path.join(os.path.dirname(__file__), "aimbot_settings.json")
+if getattr(sys, "frozen", False):
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(__file__)
+
+SETTINGS_FILE = os.path.join(BASE_DIR, "aimbot_settings.json")
 
 
 def load_saved_settings() -> AimbotSettings:
