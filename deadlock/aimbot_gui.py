@@ -139,6 +139,13 @@ class AimbotApp:
         self.headshot_var = tk.DoubleVar(value=self.settings.headshot_probability)
         ttk.Entry(frame, textvariable=self.headshot_var, width=5).grid(row=row, column=1, sticky="w")
         row += 1
+        self.acquire_headshot_var = tk.BooleanVar(value=self.settings.headshot_on_acquire)
+        ttk.Checkbutton(
+            frame,
+            text="Headshot on acquire",
+            variable=self.acquire_headshot_var,
+        ).grid(row=row, column=0, columnspan=2, sticky="w")
+        row += 1
         ttk.Label(frame, text="Target select").grid(row=row, column=0, sticky="w")
         self.target_var = tk.StringVar(value=self.settings.target_select_type)
         ttk.Combobox(frame, textvariable=self.target_var, values=["fov", "distance"], width=8).grid(row=row, column=1, sticky="w")
@@ -243,6 +250,7 @@ class AimbotApp:
         self.settings.headshot_probability = float(self.headshot_var.get())
         self.settings.target_select_type = self.target_var.get()
         self.settings.smooth_speed = float(self.smooth_var.get())
+        self.settings.headshot_on_acquire = self.acquire_headshot_var.get()
 
         self.settings.grey_talon_lock_enabled = self.grey_enabled.get()
         if self.grey_key.get():

@@ -88,6 +88,10 @@ the head or body, it will maintain that targeting preference for the next 0.4
 seconds before making a new random decision. This prevents rapid switching
 between head and body targeting that could appear unnatural.
 
+If no enemy has been targeted for more than two seconds, the
+`headshot_on_acquire` setting (enabled by default) forces headshots for the next
+0.4 seconds when a new target is acquired.
+
 #### Hero ability lock
 
 When playing **Grey Talon** or **Yamato**, pressing **Q** (ability 1) keeps the
