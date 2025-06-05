@@ -169,9 +169,18 @@ python -m py_compile $(git ls-files '*.py')
 
 ### Project structure
 
-The repository is organised as follows:
+- The repository is organised as follows:
 
-- `deadlock/` – Python package containing the aimbot, ESP and helper modules.
+- `deadlock/` – Python package with the main functionality:
+  - `__init__.py` – exposes the public API and lazily loads optional modules.
+  - `aimbot.py` – implements the aimbot logic and input handling.
+  - `aimbot_gui.py` – Tkinter interface for configuring and running the aimbot.
+  - `esp.py` – pygame overlay drawing simple player skeletons.
+  - `gui_utils.py` – helper functions used by the GUI.
+  - `heroes.py` – hero enumeration and bone lookups.
+  - `helpers.py` – vector math and coordinate conversion utilities.
+  - `memory.py` – wrapper over ``pymem`` for reading game memory.
+  - `update_checker.py` – utilities for checking GitHub for new releases.
 - `launcher.py` – entry point used when bundling the GUI with PyInstaller.
 - `offset_finder.py` – scans the game to find updated memory offsets.
 - `signature_patterns.py` – byte patterns consumed by the offset finder.
