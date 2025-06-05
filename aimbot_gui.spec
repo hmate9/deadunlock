@@ -10,7 +10,7 @@ try:
 except NameError:
     project_root = Path(os.getcwd())
 
-icon_file = project_root / 'img' / 'deadunlock_icon.ico'
+icon_file = project_root / 'img' / 'deadunlock_icon.png'
 
 a = Analysis(
     ['launcher.py'],
