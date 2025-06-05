@@ -24,12 +24,14 @@ try:
     from .heroes import get_body_bone_index, get_head_bone_index
     from .helpers import calculate_camera_rotation, calculate_new_camera_angles
     from .memory import DeadlockMemory
+    from . import mem_offsets as mo
     from .update_checker import ensure_up_to_date
 except ImportError:
     # Fallback for when running directly
     from heroes import get_body_bone_index, get_head_bone_index
     from helpers import calculate_camera_rotation, calculate_new_camera_angles
     from memory import DeadlockMemory
+    import mem_offsets as mo
 
 logger = logging.getLogger(__name__)
 
@@ -257,11 +259,13 @@ class Aimbot:
                 get_head_bone_index(target["hero"]) if self.should_aim_for_head() else get_body_bone_index(target["hero"])
             )
             if bone_index is not None:
-                bone_array = self.mem.read_longlong(target["node"] + 0x170 + 0x80)
+                bone_array = self.mem.read_longlong(
+                    target["node"] + mo.SKELETON_BASE + mo.BONE_ARRAY
+                )
                 head_vector = (
-                    self.mem.read_float(bone_array + bone_index * 32),
-                    self.mem.read_float(bone_array + bone_index * 32 + 4),
-                    self.mem.read_float(bone_array + bone_index * 32 + 8),
+                    self.mem.read_float(bone_array + bone_index * mo.BONE_STEP),
+                    self.mem.read_float(bone_array + bone_index * mo.BONE_STEP + 4),
+                    self.mem.read_float(bone_array + bone_index * mo.BONE_STEP + 8),
                 )
                 target_pos = head_vector
             else:

@@ -9,6 +9,7 @@ import pymem
 
 from .heroes import HeroIds
 from .helpers import Vector3
+from . import mem_offsets as mo
 import offset_finder
 
 
@@ -66,25 +67,31 @@ class DeadlockMemory:
 
     @property
     def camera(self) -> int:
-        return self.read_longlong(self.client_base + self.offsets.camera_manager + 0x28)
+        return self.read_longlong(
+            self.client_base + self.offsets.camera_manager + mo.CAMERA_PTR_OFFSET
+        )
 
     def camera_position(self) -> Vector3:
         cam = self.camera
         return (
-            self.read_float(cam + 0x38),
-            self.read_float(cam + 0x3C),
-            self.read_float(cam + 0x40),
+            self.read_float(cam + mo.CAMERA_POS_X),
+            self.read_float(cam + mo.CAMERA_POS_Y),
+            self.read_float(cam + mo.CAMERA_POS_Z),
         )
 
     def current_angles(self) -> Tuple[float, float]:
         cam = self.camera
-        return self.read_float(cam + 0x48), self.read_float(cam + 0x44)
+        return self.read_float(cam + mo.CAMERA_YAW), self.read_float(
+            cam + mo.CAMERA_PITCH
+        )
 
     def set_angles(self, yaw: float, pitch: float, aim_angle: float = 0.0) -> None:
         cam = self.camera
-        self.write_float(cam + 0x48, yaw)
-        self.write_float(cam + 0x44, pitch - aim_angle)  # Subtract aim_angle for recoil compensation
-        self.write_float(cam + 0x4C, 0.0)
+        self.write_float(cam + mo.CAMERA_YAW, yaw)
+        self.write_float(
+            cam + mo.CAMERA_PITCH, pitch - aim_angle
+        )  # Subtract aim_angle for recoil compensation
+        self.write_float(cam + mo.CAMERA_ROLL, 0.0)
 
     def get_entity_base(self, index: int) -> Tuple[int, int]:
         """Return controller and pawn addresses for entity ``index``."""
@@ -103,23 +110,27 @@ class DeadlockMemory:
         """Return a dict describing the entity at ``index``."""
 
         controller_base, pawn = self.get_entity_base(index)
-        hero_id = HeroIds(self.read_int(controller_base + 0x8B8 + 0x1C))
-        game_scene_node = self.read_longlong(pawn + 0x330)
-        pos_addr = game_scene_node + 0xD0
+        hero_id = HeroIds(self.read_int(controller_base + mo.HERO_ID_OFFSET))
+        game_scene_node = self.read_longlong(pawn + mo.GAME_SCENE_NODE)
+        pos_addr = game_scene_node + mo.NODE_POSITION
         pos = (
             self.read_float(pos_addr),
             self.read_float(pos_addr + 4),
             self.read_float(pos_addr + 8) + 70,
         )
-        team = self.read_int(controller_base + 0x3F3)
-        health = self.read_int(pawn + 0x354)
+        team = self.read_int(controller_base + mo.TEAM_OFFSET)
+        health = self.read_int(pawn + mo.HEALTH_OFFSET)
         
         # Get aim angle for local player (index 0) - for recoil compensation
         aim_angle = 0.0
         if index == 0:
             try:
-                camera_services = self.read_longlong(pawn + 0xf80)  # C_BasePlayerPawn + CPlayer_CameraServices
-                aim_angle = self.read_float(camera_services + 0x40)  # m_vecPunchAngle
+                camera_services = self.read_longlong(
+                    pawn + mo.CAMERA_SERVICES
+                )  # C_BasePlayerPawn + CPlayer_CameraServices
+                aim_angle = self.read_float(
+                    camera_services + mo.PUNCH_ANGLE
+                )  # m_vecPunchAngle
             except:
                 aim_angle = 0.0
         
