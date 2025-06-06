@@ -19,6 +19,7 @@ import argparse
 import ctypes
 
 import win32api
+import win32con
 
 try:
     from .heroes import get_body_bone_index, get_head_bone_index
@@ -76,6 +77,15 @@ class AimbotSettings:
     vindicta_key: int = ord("R")
     #: virtual-key code for Vindicta's lock trigger
 
+    paradox_shortcut_enabled: bool = True
+    #: if ``True`` trigger Paradox ability combo
+
+    paradox_r_key: int = ord("R")
+    #: key that initiates Paradox combo
+
+    paradox_e_key: int = ord("E")
+    #: key automatically pressed after ``paradox_r_key``
+
     headshot_on_acquire: bool = True
     #: force headshots for 0.4s when locking on after a 2s gap
 
@@ -101,6 +111,10 @@ class Aimbot:
         self._force_head_until: float = 0.0
         self._last_lock_lost: float = 0.0
 
+        # Paradox shortcut state
+        self._paradox_next_e: float = 0.0
+        self._paradox_r_held: bool = False
+
         logger.info("Aimbot initialised with settings: %s", self.settings)
 
     def _update_ability_lock(self, hero) -> None:
@@ -118,6 +132,25 @@ class Aimbot:
             if win32api.GetKeyState(self.settings.vindicta_key) < 0:
                 self.force_aim_until = max(self.force_aim_until, now + self.settings.vindicta_lock)
                 logger.debug("Vindicta ability lock triggered; holding until %.2f", self.force_aim_until)
+        elif hero.name == "Paradox" and self.settings.paradox_shortcut_enabled:
+            self._handle_paradox_shortcut(now)
+
+    def _handle_paradox_shortcut(self, now: float) -> None:
+        """Trigger Paradox ``E`` after ``R`` is pressed."""
+        if win32api.GetKeyState(self.settings.paradox_r_key) < 0:
+            if not self._paradox_r_held:
+                self._paradox_r_held = True
+                self._paradox_next_e = now + 0.05
+        else:
+            self._paradox_r_held = False
+
+        if self._paradox_next_e and now >= self._paradox_next_e:
+            win32api.keybd_event(self.settings.paradox_e_key, 0, 0, 0)
+            win32api.keybd_event(
+                self.settings.paradox_e_key, 0, win32con.KEYEVENTF_KEYUP, 0
+            )
+            logger.debug("Paradox shortcut triggered")
+            self._paradox_next_e = 0.0
 
     def should_aim_for_head(self) -> bool:
         """Return ``True`` if the bot should attempt a headshot.
