@@ -158,7 +158,8 @@ class AimbotApp:
         hero_frame.grid(row=row, column=0, columnspan=2, sticky="ew", pady=(5, 0))
         hero_row = 0
         ttk.Label(hero_frame, text="Hero").grid(row=hero_row, column=0, sticky="w")
-        ttk.Label(hero_frame, text="Keybind").grid(row=hero_row, column=1, sticky="w")
+        ttk.Label(hero_frame, text="Key 1").grid(row=hero_row, column=1, sticky="w")
+        ttk.Label(hero_frame, text="Key 2").grid(row=hero_row, column=2, sticky="w")
         hero_row += 1
         self.grey_enabled = tk.BooleanVar(value=self.settings.grey_talon_lock_enabled)
         ttk.Checkbutton(hero_frame, text="Grey Talon", variable=self.grey_enabled).grid(row=hero_row, column=0, sticky="w")
@@ -174,6 +175,13 @@ class AimbotApp:
         ttk.Checkbutton(hero_frame, text="Vindicta", variable=self.vindicta_enabled).grid(row=hero_row, column=0, sticky="w")
         self.vindicta_key = tk.StringVar(value=chr(self.settings.vindicta_key))
         ttk.Entry(hero_frame, textvariable=self.vindicta_key, width=3).grid(row=hero_row, column=1, sticky="w")
+        hero_row += 1
+        self.paradox_enabled = tk.BooleanVar(value=self.settings.paradox_shortcut_enabled)
+        ttk.Checkbutton(hero_frame, text="Paradox", variable=self.paradox_enabled).grid(row=hero_row, column=0, sticky="w")
+        self.paradox_r_key = tk.StringVar(value=chr(self.settings.paradox_r_key))
+        ttk.Entry(hero_frame, textvariable=self.paradox_r_key, width=3).grid(row=hero_row, column=1, sticky="w")
+        self.paradox_e_key = tk.StringVar(value=chr(self.settings.paradox_e_key))
+        ttk.Entry(hero_frame, textvariable=self.paradox_e_key, width=3).grid(row=hero_row, column=2, sticky="w")
         hero_row += 1
         row += 1
         control_frame = ttk.Frame(frame)
@@ -263,6 +271,12 @@ class AimbotApp:
         self.settings.vindicta_lock_enabled = self.vindicta_enabled.get()
         if self.vindicta_key.get():
             self.settings.vindicta_key = ord(self.vindicta_key.get().upper()[0])
+
+        self.settings.paradox_shortcut_enabled = self.paradox_enabled.get()
+        if self.paradox_r_key.get():
+            self.settings.paradox_r_key = ord(self.paradox_r_key.get().upper()[0])
+        if self.paradox_e_key.get():
+            self.settings.paradox_e_key = ord(self.paradox_e_key.get().upper()[0])
 
     def start(self) -> None:
         """Start the aimbot."""

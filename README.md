@@ -101,6 +101,10 @@ aimbot locked on your target for a short duration. Using **Vindicta's** **R**
 hotkeys can also be configured (`grey_talon_key`, `yamato_key`, and
 `vindicta_key`) or toggled completely using the GUI.
 
+For **Paradox**, pressing **R** automatically fires **E** after 0.05 seconds.
+Both keys can be changed via ``paradox_r_key`` and ``paradox_e_key`` and the
+shortcut can be disabled with ``paradox_shortcut_enabled``.
+
 A small Tkinter GUI is available as well:
 
 ```bash
