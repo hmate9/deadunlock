@@ -397,8 +397,8 @@ class AimbotApp:
             if self.settings.glow_override:
                 try:
                     self.bot.mem.toggle_glow_override(False)
-                except Exception:
-                    pass
+                except Exception as e:
+                    self.log_queue.put(f"Error disabling glow override: {str(e)}")
             self.bot.stop()
             
         self.is_running = False
