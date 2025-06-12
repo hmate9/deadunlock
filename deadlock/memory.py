@@ -175,8 +175,11 @@ class DeadlockMemory:
                 return False
 
         if self._glow_original is None:
-            self._glow_original = self.pm.read_bytes(self._glow_addr, len(GLOW_PATCH))
-
+            try:
+                self._glow_original = self.pm.read_bytes(self._glow_addr, len(GLOW_PATCH))
+            except pymem.exception.MemoryReadError as e:
+                print(f"Failed to read glow bytes: {e}")
+                self._glow_original = None
         patch = GLOW_PATCH if enable else self._glow_original
         self.pm.write_bytes(self._glow_addr, patch, len(patch))
         return True
