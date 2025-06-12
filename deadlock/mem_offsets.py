@@ -10,7 +10,7 @@ CAMERA_PITCH = 0x44   # camera base -> pitch
 CAMERA_ROLL = 0x4C    # camera base -> roll (unused)
 
 # Entity offsets
-HERO_ID_OFFSET = 0x8B8 + 0x1C  # controller -> m_heroID
+HERO_ID_OFFSET = 0x8c0 + 0x1C  # m_PlayerDataGlobal -> m_heroID
 GAME_SCENE_NODE = 0x330  # pawn -> CGameSceneNode pointer
 NODE_POSITION = 0xD0     # CGameSceneNode -> position vector
 TEAM_OFFSET = 0x3F3      # controller -> team id
