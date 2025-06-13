@@ -138,6 +138,16 @@ class AimbotApp:
         ttk.Label(frame, text="Headshot probability").grid(row=row, column=0, sticky="w")
         self.headshot_var = tk.DoubleVar(value=self.settings.headshot_probability)
         ttk.Entry(frame, textvariable=self.headshot_var, width=5).grid(row=row, column=1, sticky="w")
+        self.headshot_warning = ttk.Label(
+            frame,
+            text="High headshot values may flag your account!",
+            foreground="red",
+        )
+        row += 1
+        self.headshot_warning.grid(row=row, column=0, columnspan=2, sticky="w")
+        self.headshot_warning.grid_remove()
+        self.headshot_var.trace_add("write", lambda *_: self._update_headshot_warning())
+        self._update_headshot_warning()
         row += 1
         self.acquire_headshot_var = tk.BooleanVar(value=self.settings.headshot_on_acquire)
         ttk.Checkbutton(
@@ -252,7 +262,18 @@ class AimbotApp:
                 self.pause_button.config(text="Resume")
             else:
                 self.pause_button.config(text="Pause")
-        """Update :attr:`settings` from widget values."""
+
+    def _update_headshot_warning(self) -> None:
+        """Show or hide the headshot probability warning."""
+        try:
+            value = float(self.headshot_var.get())
+        except tk.TclError:
+            value = 0.0
+        if value > 0.35:
+            self.headshot_warning.grid()
+        else:
+            self.headshot_warning.grid_remove()
+
     def _apply_widget_values(self) -> None:
         """Update :attr:`settings` from widget values."""
         self.settings.headshot_probability = float(self.headshot_var.get())
