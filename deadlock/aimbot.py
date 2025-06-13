@@ -89,6 +89,12 @@ class AimbotSettings:
     headshot_on_acquire: bool = True
     #: force headshots for 0.4s when locking on after a 2s gap
 
+    aimbot_button: int = 0x01
+    #: virtual-key code that activates the aimbot while held
+
+    fire_only_button: int = 0x02
+    #: virtual-key code to fire without running aimbot logic
+
 
 class Aimbot:
     """Basic aimbot controller."""
@@ -186,8 +192,11 @@ class Aimbot:
     def run(self) -> None:
         """Main aimbot loop."""
 
-        logger.info("Aimbot loop started - hold the left mouse button to aim")
-        active = win32api.GetKeyState(0x01) < 0 or time.time() < self.force_aim_until
+        logger.info("Aimbot loop started - hold the aimbot button to aim")
+        active = (
+            win32api.GetKeyState(self.settings.aimbot_button) < 0
+            or time.time() < self.force_aim_until
+        )
         log_state_changes = False
         prev_locked = None
         hold_down_left_click = False
@@ -201,11 +210,17 @@ class Aimbot:
             self._update_ability_lock(my_data["hero"])
             my_aim_angle = my_data["aim_angle"]
 
-            if not hold_down_left_click and win32api.GetKeyState(0x02) < 0:
+            if (
+                not hold_down_left_click
+                and win32api.GetKeyState(self.settings.fire_only_button) < 0
+            ):
                 hold_down_left_click = True
                 ctypes.windll.user32.mouse_event(2, 0, 0, 0, 0)
 
-            if hold_down_left_click and win32api.GetKeyState(0x02) >= 0:
+            if (
+                hold_down_left_click
+                and win32api.GetKeyState(self.settings.fire_only_button) >= 0
+            ):
                 hold_down_left_click = False
                 ctypes.windll.user32.mouse_event(4, 0, 0, 0, 0)
 
@@ -213,7 +228,10 @@ class Aimbot:
                 time.sleep(0.01)
                 continue
 
-            mouse_down = win32api.GetKeyState(0x01) < 0 or time.time() < self.force_aim_until
+            mouse_down = (
+                win32api.GetKeyState(self.settings.aimbot_button) < 0
+                or time.time() < self.force_aim_until
+            )
             if not log_state_changes and not mouse_down:
                 log_state_changes = True
                 active = False
@@ -222,7 +240,7 @@ class Aimbot:
                 if log_state_changes:
                     logger.info("Aimbot turned %s", "on" if active else "off")
             if not mouse_down:
-                # Left mouse button is not held and no ability lock active
+                # Aimbot button is not held and no ability lock active
                 if self.locked_on is not None:
                     self._last_lock_lost = time.time()
                 self.locked_on = None

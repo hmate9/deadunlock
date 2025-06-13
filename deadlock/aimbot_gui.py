@@ -21,6 +21,24 @@ from .gui_utils import (
 from .update_checker import update_available, open_release_page
 
 
+MOUSE_OPTIONS = {
+    "Left": 0x01,
+    "Right": 0x02,
+    "Middle": 0x04,
+}
+
+
+def button_name(code: int) -> str:
+    """Return the display name for ``code``."""
+    for name, value in MOUSE_OPTIONS.items():
+        if value == code:
+            return name
+    return str(code)
+
+
+def button_code(name: str) -> int:
+    """Return the virtual-key code for ``name``."""
+    return MOUSE_OPTIONS.get(name, int(name))
 
 
 class AimbotApp:
@@ -154,6 +172,24 @@ class AimbotApp:
         self.smooth_var = tk.DoubleVar(value=self.settings.smooth_speed)
         ttk.Entry(frame, textvariable=self.smooth_var, width=5).grid(row=row, column=1, sticky="w")
         row += 1
+        ttk.Label(frame, text="Aimbot button").grid(row=row, column=0, sticky="w")
+        self.aimbot_button = tk.StringVar(value=button_name(self.settings.aimbot_button))
+        ttk.Combobox(
+            frame,
+            textvariable=self.aimbot_button,
+            values=list(MOUSE_OPTIONS.keys()),
+            width=8,
+        ).grid(row=row, column=1, sticky="w")
+        row += 1
+        ttk.Label(frame, text="Fire only button").grid(row=row, column=0, sticky="w")
+        self.fire_button = tk.StringVar(value=button_name(self.settings.fire_only_button))
+        ttk.Combobox(
+            frame,
+            textvariable=self.fire_button,
+            values=list(MOUSE_OPTIONS.keys()),
+            width=8,
+        ).grid(row=row, column=1, sticky="w")
+        row += 1
         hero_frame = ttk.LabelFrame(frame, text="Hero Ability Locks", padding=5)
         hero_frame.grid(row=row, column=0, columnspan=2, sticky="ew", pady=(5, 0))
         hero_row = 0
@@ -259,6 +295,9 @@ class AimbotApp:
         self.settings.target_select_type = self.target_var.get()
         self.settings.smooth_speed = float(self.smooth_var.get())
         self.settings.headshot_on_acquire = self.acquire_headshot_var.get()
+
+        self.settings.aimbot_button = button_code(self.aimbot_button.get())
+        self.settings.fire_only_button = button_code(self.fire_button.get())
 
         self.settings.grey_talon_lock_enabled = self.grey_enabled.get()
         if self.grey_key.get():
