@@ -96,11 +96,8 @@ If no enemy has been targeted for more than two seconds, the
 
 When playing **Grey Talon** or **Yamato**, pressing **Q** (ability 1) keeps the
 aimbot locked on your target for a short duration. Using **Vindicta's** **R**
-(ability 4) triggers the same lock. By default Grey Talon holds for 0.5 seconds,
-Yamato for 1.5 seconds and Vindicta for 0.5 seconds. After Vindicta's timer
-the bot clicks the left mouse button and taps ``R`` again automatically. These timeouts can be
-changed through ``AimbotSettings`` (`grey_talon_lock`, `yamato_lock`, and
-`vindicta_lock`). The
+(ability 4) triggers the same lock. These timeouts can be changed through
+``AimbotSettings`` (`grey_talon_lock`, `yamato_lock`, and `vindicta_lock`). The
 hotkeys can also be configured (`grey_talon_key`, `yamato_key`, and
 `vindicta_key`) or toggled completely using the GUI.
 

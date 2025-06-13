@@ -68,7 +68,7 @@ class AimbotSettings:
     yamato_key: int = ord("Q")
     #: virtual-key code for Yamato's lock trigger
 
-    vindicta_lock: float = 0.5
+    vindicta_lock: float = 0.65
     #: seconds to keep aiming after Vindicta's ability 4 (``R``)
 
     vindicta_lock_enabled: bool = True
@@ -115,24 +115,7 @@ class Aimbot:
         self._paradox_next_e: float = 0.0
         self._paradox_r_held: bool = False
 
-        # Vindicta follow up state
-        self._vindicta_fire_at: float = 0.0
-        self._ignore_vindicta_until: float = 0.0
-
         logger.info("Aimbot initialised with settings: %s", self.settings)
-
-    def _handle_vindicta_followup(self, now: float) -> None:
-        """Fire and reset Vindicta after the lock timer."""
-        if self._vindicta_fire_at and now >= self._vindicta_fire_at:
-            ctypes.windll.user32.mouse_event(2, 0, 0, 0, 0)
-            ctypes.windll.user32.mouse_event(4, 0, 0, 0, 0)
-            win32api.keybd_event(self.settings.vindicta_key, 0, 0, 0)
-            win32api.keybd_event(
-                self.settings.vindicta_key, 0, win32con.KEYEVENTF_KEYUP, 0
-            )
-            logger.debug("Vindicta follow-up shot fired")
-            self._vindicta_fire_at = 0.0
-            self._ignore_vindicta_until = now + 0.1
 
     def _update_ability_lock(self, hero) -> None:
         """Extend ``force_aim_until`` when ability keys are pressed."""
@@ -146,16 +129,9 @@ class Aimbot:
                 self.force_aim_until = max(self.force_aim_until, now + self.settings.yamato_lock)
                 logger.debug("Yamato ability lock triggered; holding until %.2f", self.force_aim_until)
         elif hero.name == "Vindicta" and self.settings.vindicta_lock_enabled and self.settings.vindicta_lock > 0:
-            if (
-                win32api.GetKeyState(self.settings.vindicta_key) < 0
-                and now >= self._ignore_vindicta_until
-            ):
+            if win32api.GetKeyState(self.settings.vindicta_key) < 0:
                 self.force_aim_until = max(self.force_aim_until, now + self.settings.vindicta_lock)
-                self._vindicta_fire_at = now + self.settings.vindicta_lock
-                logger.debug(
-                    "Vindicta ability lock triggered; holding until %.2f",
-                    self.force_aim_until,
-                )
+                logger.debug("Vindicta ability lock triggered; holding until %.2f", self.force_aim_until)
         elif hero.name == "Paradox" and self.settings.paradox_shortcut_enabled:
             self._handle_paradox_shortcut(now)
 
@@ -223,7 +199,6 @@ class Aimbot:
                 
             my_data = self.mem.read_entity(0)
             self._update_ability_lock(my_data["hero"])
-            self._handle_vindicta_followup(time.time())
             my_aim_angle = my_data["aim_angle"]
 
             if not hold_down_left_click and win32api.GetKeyState(0x02) < 0:
