@@ -73,12 +73,10 @@ python -m deadlock.aimbot --debug
 The script connects to the game's process and continually adjusts your camera
 towards enemy targets.
 
-The aimbot automatically selects the closest target while you hold the
-configured button (left mouse by default). If you want to shoot without the
-aimbot—for example at troopers, towers or souls—hold the alternate fire button
-(right mouse by default) and make sure to remap the key in Deadlock so it
-doesn't conflict. Both buttons can be changed through ``AimbotSettings`` or the
-GUI.
+The aimbot automatically selects the closest target when you hold down the left
+mouse button. If you want to shoot without the aimbot—for example at troopers,
+towers or souls—hold the right mouse button instead and make sure to remap the
+alternate fire key in Deadlock's settings so it doesn't conflict.
 
 #### Headshot targeting
 
