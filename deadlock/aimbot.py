@@ -89,6 +89,9 @@ class AimbotSettings:
     headshot_on_acquire: bool = True
     #: force headshots for 0.4s when locking on after a 2s gap
 
+    glow_override: bool = False
+    #: if ``True`` NOP the in-game glow check
+
 
 class Aimbot:
     """Basic aimbot controller."""
