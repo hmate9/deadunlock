@@ -27,17 +27,17 @@ jobs:
           echo ${{ github.sha }} > version.txt
           
           # Build with verbose output
-          pyinstaller --log-level=INFO aimbot_gui.spec
+          pyinstaller --log-level=INFO deadunlock.spec
           
       - name: Verify executable and icon
         run: |
           # Check if executable was created
-          if (Test-Path "dist/aimbot_gui.exe") {
-              $size = (Get-Item "dist/aimbot_gui.exe").Length
+          if (Test-Path "dist/deadunlock.exe") {
+              $size = (Get-Item "dist/deadunlock.exe").Length
               Write-Output "Executable created: $size bytes"
               
               # Try to extract icon info (basic check)
-              $file = Get-Item "dist/aimbot_gui.exe"
+              $file = Get-Item "dist/deadunlock.exe"
               Write-Output "Executable details: $($file.Name) - $($file.Length) bytes"
           } else {
               Write-Error "Executable not found!"
@@ -54,6 +54,6 @@ jobs:
           tag_name: ${{ steps.vars.outputs.tag }}
           name: ${{ steps.vars.outputs.tag }}
           files: |
-            dist/aimbot_gui.exe
+            dist/deadunlock.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN  }}

@@ -26,7 +26,7 @@ from .update_checker import update_available, open_release_page
 class AimbotApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
-        self.root.title("DeadUnlock Aimbot")
+        self.root.title("DeadUnlock")
         self.root.geometry("750x520")
         self.root.minsize(620, 480)
         
