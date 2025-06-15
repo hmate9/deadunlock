@@ -3,7 +3,7 @@ from __future__ import annotations
 """Thin wrapper over :mod:`pymem` for reading Deadlock game memory."""
 
 from dataclasses import dataclass
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 
 import pymem
 
@@ -11,6 +11,14 @@ from .heroes import HeroIds
 from .helpers import Vector3
 from . import mem_offsets as mo
 import offset_finder
+
+# Pattern to locate the glow check conditional in client.dll
+GLOW_PATTERN = bytes.fromhex(
+    "0F 85 70 02 00 00 44 0F 11 54 24 58 C7 44 24 68 FF FF 7F FF "
+    "48 8B CB C7 44 24 6C FF FF 7F FF 48"
+)
+GLOW_PATCH = b"\x90" * 6
+GLOW_ORIGINAL = bytes.fromhex("0F 85 70 02 00 00")
 
 
 @dataclass
@@ -34,6 +42,8 @@ class DeadlockMemory:
             self.pm.process_handle, "client.dll"
         ).lpBaseOfDll
         self.offsets = self._read_offsets()
+        self._glow_addr: Optional[int] = None
+        self._glow_original: bytes | None = None
 
     def _read_offsets(self) -> Offsets:
         """Read offsets via :mod:`offset_finder`."""
@@ -144,3 +154,32 @@ class DeadlockMemory:
             "hero": hero_id,
             "aim_angle": aim_angle,
         }
+
+    # Glow override -----------------------------------------------------
+    def _find_glow_address(self) -> Optional[int]:
+        module = pymem.process.module_from_name(
+            self.pm.process_handle, "client.dll"
+        )
+        data = self.pm.read_bytes(module.lpBaseOfDll, module.SizeOfImage)
+        idx = data.find(GLOW_PATTERN)
+        if idx == -1:
+            return None
+        return module.lpBaseOfDll + idx
+
+    def toggle_glow_override(self, enable: bool) -> bool:
+        """Enable or disable the glow check NOP patch."""
+
+        if self._glow_addr is None:
+            self._glow_addr = self._find_glow_address()
+            if self._glow_addr is None:
+                return False
+
+        if self._glow_original is None:
+            try:
+                self._glow_original = self.pm.read_bytes(self._glow_addr, len(GLOW_PATCH))
+            except pymem.exception.MemoryReadError as e:
+                print(f"Failed to read glow bytes: {e}")
+                self._glow_original = None
+        patch = GLOW_PATCH if enable else self._glow_original
+        self.pm.write_bytes(self._glow_addr, patch, len(patch))
+        return True
