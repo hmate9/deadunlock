@@ -20,7 +20,7 @@ process.
 
 Builds are automatically generated on every push and published under the
 [releases](https://github.com/hmate9/deadunlock/releases). Grab the latest
-`aimbot_gui.exe` from the
+`deadunlock.exe` from the
 [latest release](https://github.com/hmate9/deadunlock/releases/latest).
 
 ## About
@@ -164,7 +164,7 @@ pip install pyinstaller
 Then create the executable with:
 
 ```bash
-pyinstaller aimbot_gui.spec
+pyinstaller deadunlock.spec
 ```
 
 The resulting `.exe` will be placed in the `dist` folder and can be run on
@@ -196,8 +196,8 @@ python -m py_compile $(git ls-files '*.py')
   - `update_checker.py` – utilities for checking GitHub for new releases.
 - `launcher.py` – entry point used when bundling the GUI with PyInstaller.
 - `offset_finder.py` – scans the game to find updated memory offsets.
-- `signature_patterns.py` – byte patterns consumed by the offset finder.
-- `aimbot_gui.spec` – PyInstaller configuration for building an executable.
+  - `signature_patterns.py` – byte patterns consumed by the offset finder.
+  - `deadunlock.spec` – PyInstaller configuration for building an executable.
 - `version.txt` – text file storing the current version string.
 - `img/` – images used in the README and GUI icons.
 
