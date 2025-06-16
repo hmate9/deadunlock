@@ -194,6 +194,13 @@ class AimbotApp:
         ttk.Entry(hero_frame, textvariable=self.paradox_e_key, width=3).grid(row=hero_row, column=2, sticky="w")
         hero_row += 1
         row += 1
+        self.glow_override_var = tk.BooleanVar(value=self.settings.glow_override)
+        ttk.Checkbutton(
+            frame,
+            text="Bypass glow check",
+            variable=self.glow_override_var,
+        ).grid(row=row, column=0, columnspan=2, sticky="w")
+        row += 1
         control_frame = ttk.Frame(frame)
         control_frame.grid(row=row, column=0, columnspan=2, pady=10, sticky="ew")
         self.start_button = ttk.Button(control_frame, text="Start", command=self.start)
@@ -299,6 +306,8 @@ class AimbotApp:
         if self.paradox_e_key.get():
             self.settings.paradox_e_key = ord(self.paradox_e_key.get().upper()[0])
 
+        self.settings.glow_override = self.glow_override_var.get()
+
     def start(self) -> None:
         """Start the aimbot."""
         if self.is_running:
@@ -342,6 +351,11 @@ class AimbotApp:
         """Initialise memory and run the aimbot."""
         try:
             mem = DeadlockMemory()
+            if self.settings.glow_override:
+                try:
+                    mem.toggle_glow_override(True)
+                except Exception as exc:
+                    self.log_queue.put(f"Glow override failed: {exc}")
             self.bot = Aimbot(mem, self.settings)
             self.log_queue.put("Aimbot started successfully.")
             self.root.after(0, lambda: (
@@ -401,6 +415,11 @@ class AimbotApp:
             return
             
         if self.bot:
+            if self.settings.glow_override:
+                try:
+                    self.bot.mem.toggle_glow_override(False)
+                except Exception as e:
+                    self.log_queue.put(f"Error disabling glow override: {str(e)}")
             self.bot.stop()
             
         self.is_running = False
