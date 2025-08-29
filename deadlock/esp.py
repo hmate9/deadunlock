@@ -85,7 +85,7 @@ class ESP:
                     logger.debug("Failed to read entity %d", i)
                     continue
                 bone_array = self.mem.read_longlong(
-                    data["node"] + mo.SKELETON_BASE + mo.BONE_ARRAY
+                    data["node"] + mo.BONE_ARRAY
                 )
                 bones = []
                 for b in range(0, 64):

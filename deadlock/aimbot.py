@@ -308,7 +308,7 @@ class Aimbot:
                 )
                 if bone_index is not None:
                     bone_array = self.mem.read_longlong(
-                        target["node"] + mo.SKELETON_BASE + mo.BONE_ARRAY
+                        target["node"] + mo.BONE_ARRAY
                     )
                     head_vector = (
                         self.mem.read_float(bone_array + bone_index * mo.BONE_STEP),
@@ -332,7 +332,7 @@ class Aimbot:
                 self.mem.set_angles(new_yaw, new_pitch, my_aim_angle)
                 time.sleep(0.001)
             except Exception as exc:
-                logger.debug("Aimbot loop error: %s", exc)
+                logger.exception("Aimbot loop error: %s", exc)
                 time.sleep(0.01)
             
         logger.info("Aimbot loop ended")

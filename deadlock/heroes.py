@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from enum import Enum
 
-
 class HeroIds(Enum):
     Infernus = 1
     Seven = 2
@@ -37,6 +36,13 @@ class HeroIds(Enum):
     Magician = 60
     Trapper = 61
     Raven = 62
+    Mina = 63
+    Drifter = 64
+    Viktor = 66
+    Paige = 67
+    Doorman = 69
+    Billy = 72
+
 
 
 _HEAD_BONES = {
@@ -70,6 +76,12 @@ _HEAD_BONES = {
     HeroIds.Trapper: 44,
     HeroIds.Viper: 13,
     HeroIds.Wrecker: 8,
+    HeroIds.Billy: 7,
+    HeroIds.Doorman: 20,
+    HeroIds.Drifter: 18,
+    HeroIds.Mina: 16,
+    HeroIds.Paige: 56,
+    HeroIds.Viktor: 58
 }
 
 _BODY_BONES = {
@@ -103,6 +115,12 @@ _BODY_BONES = {
     HeroIds.Trapper: 10,
     HeroIds.Viper: 10,
     HeroIds.Wrecker: 6,
+    HeroIds.Billy: 3,
+    HeroIds.Doorman: 17,
+    HeroIds.Drifter: 6,
+    HeroIds.Mina: 13,
+    HeroIds.Paige: 19,
+    HeroIds.Viktor: 8
 }
 
 

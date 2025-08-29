@@ -101,7 +101,7 @@ class DeadlockMemory:
         controller_base = self.read_longlong(address_base + 120 * (index & 0x1FF))
         if index == 0:
             controller_base = self.local_controller
-        pawn_handle = self.read_longlong(controller_base + 0x6ac) # C_BasePlayerController -> m_hPawn
+        pawn_handle = self.read_longlong(controller_base + 0x874) # C_BasePlayerController -> m_hPawn
         list_entry = self.read_longlong(entity_list + 0x8 * ((pawn_handle & 0x7FFF) >> 0x9) + 0x10)
         pawn = self.read_longlong(list_entry + 0x78 * (pawn_handle & 0x1FF))
         return controller_base, pawn

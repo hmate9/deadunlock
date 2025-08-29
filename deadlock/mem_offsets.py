@@ -10,15 +10,14 @@ CAMERA_PITCH = 0x44   # camera base -> pitch
 CAMERA_ROLL = 0x4C    # camera base -> roll (unused)
 
 # Entity offsets
-HERO_ID_OFFSET = 0x8c0 + 0x1C  # m_PlayerDataGlobal -> m_heroID
+HERO_ID_OFFSET = 0x8b8 + 0x1C  # m_PlayerDataGlobal -> m_heroID
 GAME_SCENE_NODE = 0x330  # pawn -> CGameSceneNode pointer
 NODE_POSITION = 0xD0     # CGameSceneNode -> position vector
 TEAM_OFFSET = 0x3F3      # controller -> team id
 HEALTH_OFFSET = 0x354    # pawn -> health
-CAMERA_SERVICES = 0xF80  # pawn -> CPlayer_CameraServices
+CAMERA_SERVICES = 0xf68  # pawn -> CPlayer_CameraServices
 PUNCH_ANGLE = 0x40       # CPlayer_CameraServices -> m_vecPunchAngle
 
 # Skeleton offsets
-SKELETON_BASE = 0x170  # game scene node -> skeleton base
-BONE_ARRAY = 0x80      # skeleton -> bone array pointer
+BONE_ARRAY = 0x210      # # game scene node -> skeleton base -> bone array pointer
 BONE_STEP = 32         # bone struct size in bytes
