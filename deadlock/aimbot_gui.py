@@ -273,24 +273,17 @@ class AimbotApp:
         # Spacer
         ttk.Frame(header).grid(row=0, column=1, padx=10)
 
-        # Controls
+        # Controls: single Start/Stop toggle for clarity
         controls = ttk.Frame(header)
         controls.grid(row=0, column=2, sticky="e")
-        self.start_button = ttk.Button(
-            controls, text="Start", style="Accent.TButton", command=self.start
+        self.toggle_button = ttk.Button(
+            controls,
+            text="Start",
+            style="Accent.TButton",
+            command=self.toggle_run,
+            width=14,
         )
-        self.start_button.grid(row=0, column=0, padx=(0, 6))
-
-        self.pause_button = ttk.Button(
-            controls, text="Pause", command=self.toggle_pause, state="disabled"
-        )
-        self.pause_button.grid(row=0, column=1, padx=6)
-
-        self.stop_button = ttk.Button(
-            controls, text="Stop", style="Danger.TButton", command=self.stop,
-            state="disabled"
-        )
-        self.stop_button.grid(row=0, column=2, padx=(6, 0))
+        self.toggle_button.grid(row=0, column=0, padx=(0, 0))
 
     def _build_tabs(self) -> None:
         """Create the main notebook and its tabs."""
@@ -502,19 +495,26 @@ class AimbotApp:
         self.status_label.config(text=f"Status: {status}", foreground=color)
     
     def _update_button_states(self) -> None:
-        """Update button states based on current aimbot status."""
+        """Update the single toggle button to reflect running state."""
         if not self.is_running:
-            self.start_button.config(state="normal")
-            self.pause_button.config(state="disabled", text="Pause")
-            self.stop_button.config(state="disabled")
+            self.toggle_button.config(
+                text="Start",
+                style="Accent.TButton",
+                state="normal",
+            )
         else:
-            self.start_button.config(state="disabled")
-            self.pause_button.config(state="normal")
-            self.stop_button.config(state="normal")
-            if self.is_paused:
-                self.pause_button.config(text="Resume")
-            else:
-                self.pause_button.config(text="Pause")
+            self.toggle_button.config(
+                text="Stop",
+                style="Danger.TButton",
+                state="normal",
+            )
+
+    def toggle_run(self) -> None:
+        """Toggle between starting and stopping the aimbot."""
+        if self.is_running:
+            self.stop()
+        else:
+            self.start()
 
     def _update_headshot_warning(self) -> None:
         """Show or hide the headshot probability warning."""
